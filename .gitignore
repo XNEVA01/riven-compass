@@ -5,4 +5,5 @@ dist-pipeline/
 .DS_Store
 __pycache__/
 .export-cache/
+tsconfig.tsbuildinfo
 public/__test__/

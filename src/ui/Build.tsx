@@ -18,6 +18,7 @@ import type { EnemyContext, ModCard, RivenContribution, WeaponPanel } from "../d
 import { computeBuild, incarnonPanel } from "../damage/engine";
 import type { StatMarginal, TierRow, WantedRow, WantedSpec } from "../damage/optimize";
 import { expectedRiven, statMarginals, threeTier } from "../damage/optimize";
+import type { DotKey } from "../damage/status";
 import combat from "../data/combat.json";
 import type { Lang } from "../engine/data";
 import { statOf, weaponById } from "../engine/data";
@@ -70,8 +71,10 @@ interface Strings {
   variantNote: string;
   form: { base: string; incarnon: string };
   formNote: string;
-  /** 口径注记：只算直接伤害 */
+  /** 口径注记：直伤+异常稳态建模 */
   directNote: string;
+  /** 异常状态稳态层（|N| 触发/秒 |D| DoT/秒 |A|-|E| 各 DoT |S| 层 |M| 乘数 |L| 剥甲来源串） */
+  status: { procs: string; dot: string; dotDetail: string; viral: string; magnetic: string; strip: string; steadyNote: string };
   /** 紫卡弱点词条为条件加成，不建模 */
   weakNote: string;
 }
@@ -366,6 +369,29 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const metric = (row: TierRow): string => (row.result.vsEnemy ? `${t.ttk} ${sec(row.result.vsEnemy.timeToKill)}` : `${num(row.result.sustainedDps)} DPS`);
   /** 四档结论行用的裸指标（无前缀）：有对敌就给击杀时长，否则给持续 DPS */
   const vMetric = (row: TierRow): string => (row.result.vsEnemy ? sec(row.result.vsEnemy.timeToKill) : `${num(row.result.sustainedDps)} DPS`);
+
+  /** 异常 DoT 明细：i18n 模板按「 · 」分段，|A|-|E| 依序对应 slash/heat/toxin/gas/blast，0 值段不显示 */
+  const dotDetailText = (() => {
+    const st = vs?.status;
+    if (!st || st.dotDpsTotal <= 0) return "";
+    const keys: DotKey[] = ["slash", "heat", "toxin", "gas", "blast"];
+    const ph = ["|A|", "|B|", "|C|", "|D|", "|E|"];
+    return t.status.dotDetail
+      .split(" · ")
+      .map((seg, i) => ({ seg, v: st.dotDps[keys[i]] ?? 0, p: ph[i] }))
+      .filter((x) => x.v > 0)
+      .map((x) => x.seg.replace(x.p, num(x.v)))
+      .join(" · ");
+  })();
+  /** 剥甲来源串：腐蚀（稳态）与火焰（点燃常驻），有其一才显示 */
+  const stripText = (() => {
+    const st = vs?.status;
+    if (!st) return "";
+    const parts: string[] = [];
+    if (st.corrosiveStrip > 0) parts.push(`${typeLabel("corrosive", lang)} ${pct(st.corrosiveStrip)}`);
+    if (st.heatStrip > 0) parts.push(`${typeLabel("heat", lang)} ${pct(st.heatStrip)}`);
+    return parts.join(" · ");
+  })();
 
   return (
     <main className="coach">
@@ -685,8 +711,37 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                       <b>{num(vs.shield)}</b>
                     </li>
                   )}
+                  {vs.status && vs.status.procsPerSec > 0 && (
+                    <li>
+                      <span>{t.status.procs.replace("|N|", `${Math.round(vs.status.procsPerSec * 10) / 10}`)}</span>
+                      <b>{t.status.dot.replace("|D|", num(vs.status.dotDpsTotal))}</b>
+                    </li>
+                  )}
+                  {dotDetailText && (
+                    <li className="vs-detail">
+                      <span>{dotDetailText}</span>
+                    </li>
+                  )}
+                  {vs.status && vs.status.viralMul > 1 && (
+                    <li>
+                      <span>{t.status.viral.replace("|S|", `${Math.round(vs.status.viralStacks * 10) / 10}`).replace("|M|", `${Math.round(vs.status.viralMul * 100) / 100}`)}</span>
+                    </li>
+                  )}
+                  {vs.status && vs.shield > 0 && vs.status.magneticMul > 1 && (
+                    <li>
+                      <span>
+                        {t.status.magnetic.replace("|S|", `${Math.round(vs.status.magneticStacks * 10) / 10}`).replace("|M|", `${Math.round(vs.status.magneticMul * 100) / 100}`)}
+                      </span>
+                    </li>
+                  )}
+                  {stripText && (
+                    <li>
+                      <span>{t.status.strip.replace("|L|", stripText)}</span>
+                    </li>
+                  )}
                 </ul>
               )}
+              {vs?.status && vs.status.procsPerSec > 0 && <p className="muted small">{t.status.steadyNote}</p>}
             </section>
 
             {tiers && (

@@ -55,23 +55,23 @@ describe("suggestBuild", () => {
     expect(new Set(s.mods.map((m) => m.id)).size).toBe(s.mods.length);
   });
 
-  it("corrosive preset yields exactly one working corrosive couple", () => {
+  it("preset mode pairs a working compound couple (viral pays for a slash weapon)", () => {
     const s = suggestBuild({
       weapon: weapon("Braton Prime"),
       pool: riflePool,
-      preset: "corrosive",
-      // the app always fights a chosen enemy: with no enemy the panel-honest
-      // scoring may skip the couple for plain multipliers instead
+      preset: "viral",
+      // 异常建模后：腐蚀对 150 级甲敌不再是正收益（切割流血被稀释、剥甲补不回来）；
+      // 病毒乘生命伤害（含流血 DoT）才是正解——用它验证「预设→配对」链路
       enemy: { spec: ENEMIES[0], level: 150 },
     });
     const r = computeBuild(weapon("Braton Prime"), s.mods);
-    // electric + toxin entered slot order and paired into corrosive
-    expect(r.dmg.corrosive).toBeGreaterThan(0);
-    // no stray unpaired base elements on the panel
-    expect(r.dmg.electricity ?? 0).toBe(0);
-    expect(r.dmg.toxin ?? 0).toBe(0);
+    // cold + toxin entered slot order and paired into viral
+    expect(r.dmg.viral).toBeGreaterThan(0);
+    // 纯元素单卡在预设模式下不可入选 → 冷/毒/电不该有残留；
+    // 混合词条卡（如 Thermite Rounds 火+触发）属单卡、其元素可独立存在，不断言
     expect(r.dmg.cold ?? 0).toBe(0);
-    expect(r.dmg.heat ?? 0).toBe(0);
+    expect(r.dmg.toxin ?? 0).toBe(0);
+    expect(r.dmg.electricity ?? 0).toBe(0);
   });
 
   it("beats the hand-picked six-mod baseline", () => {
@@ -82,38 +82,46 @@ describe("suggestBuild", () => {
     expect(s.score).toBeGreaterThanOrEqual(baseScore * 0.999);
   });
 
-  it("adversarial mode follows Damage 2.0 armor-class direction", () => {
-    const w = weapon("Braton Prime");
-    // ferrite heavy gunner: corrosive strips armor (x1.75), radiation does not
+  it("adversarial mode follows Damage 2.0 armor-class direction (sc=0: pure direct damage)", () => {
+    // 合成武器 sc=0：没有任何触发 → 无剥甲无 DoT，元素方向只由护甲类型修正决定
+    const synth: WeaponPanel = {
+      id: "/Lotus/Weapons/Tenno/Test/SynthRifle",
+      en: "Synth Rifle",
+      zh: "合成步枪",
+      compat: "rifle",
+      dmg: { impact: 10 },
+      total: 10,
+      cc: 0.1,
+      cd: 2,
+      sc: 0,
+      fr: 5,
+      mag: 20,
+      rl: 2,
+      ms: 1,
+      trigger: "Auto",
+    };
+    // ferrite heavy gunner: corrosive +75% vs ferrite, radiation does not
     const gunner = { spec: ENEMIES[0], level: 150 };
-    const corOnFerrite = suggestBuild({
-      weapon: w,
-      pool: riflePool,
-      preset: "corrosive",
-      enemy: gunner,
-    });
-    const radOnFerrite = suggestBuild({
-      weapon: w,
-      pool: riflePool,
-      preset: "radiation",
-      enemy: gunner,
-    });
+    const corOnFerrite = suggestBuild({ weapon: synth, pool: riflePool, preset: "corrosive", enemy: gunner });
+    const radOnFerrite = suggestBuild({ weapon: synth, pool: riflePool, preset: "radiation", enemy: gunner });
     expect(corOnFerrite.score).toBeGreaterThan(radOnFerrite.score);
     // alloy-armor bombard flips the direction: radiation +75% vs alloy
     const bombard = { spec: ENEMIES[1], level: 150 };
-    const radOnAlloy = suggestBuild({
-      weapon: w,
-      pool: riflePool,
-      preset: "radiation",
-      enemy: bombard,
-    });
-    const corOnAlloy = suggestBuild({
-      weapon: w,
-      pool: riflePool,
-      preset: "corrosive",
-      enemy: bombard,
-    });
+    const radOnAlloy = suggestBuild({ weapon: synth, pool: riflePool, preset: "radiation", enemy: bombard });
+    const corOnAlloy = suggestBuild({ weapon: synth, pool: riflePool, preset: "corrosive", enemy: bombard });
     expect(radOnAlloy.score).toBeGreaterThan(corOnAlloy.score);
+  });
+
+  it("status layer pays: strip + DoT beat the same build at sc=0", () => {
+    const w = weapon("Braton Prime");
+    const bombard = { spec: ENEMIES[1], level: 150 };
+    // 手选腐蚀对（电+毒）：同一套配卡下 sc>0（腐蚀剥甲 + 流血DoT）必须比 sc=0（纯直伤）杀得快
+    const mods = [byName("Serration"), byName("Stormbringer"), byName("Infected Clip")];
+    const withStatus = computeBuild(w, mods, null, bombard);
+    const without = computeBuild({ ...w, sc: 0 }, mods, null, bombard);
+    expect(withStatus.vsEnemy?.status?.corrosiveStrip).toBeGreaterThan(0);
+    expect(withStatus.vsEnemy?.status?.dotDpsTotal).toBeGreaterThan(0);
+    expect(withStatus.vsEnemy?.timeToKill ?? Number.POSITIVE_INFINITY).toBeLessThan(without.vsEnemy?.timeToKill ?? 0);
   });
 
   it("ban list removes mods from consideration", () => {

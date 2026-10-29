@@ -177,6 +177,8 @@ describe("faction damage (驱逐/灭亡/净化)", () => {
     const bare = computeBuild(braton, [], null, { spec: gunner, level: 150 });
     const withMod = computeBuild(braton, [bane], null, { spec: gunner, level: 150 });
     expect(withMod.sustainedDps).toBeCloseTo(bare.sustainedDps * 1.55, 5);
-    expect(withMod.vsEnemy?.timeToKill).toBeCloseTo((bare.vsEnemy?.timeToKill ?? 0) / 1.55, 5);
+    // 直伤精确 ×1.55；DoT 吃阵营平方（基伤一次、每跳一次）→ TTK 缩得比 /1.55 更快
+    expect(withMod.vsEnemy?.directSustainedDps).toBeCloseTo((bare.vsEnemy?.directSustainedDps ?? 0) * 1.55, 5);
+    expect(withMod.vsEnemy?.timeToKill ?? 0).toBeLessThan((bare.vsEnemy?.timeToKill ?? Number.POSITIVE_INFINITY) / 1.55);
   });
 });

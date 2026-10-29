@@ -11,6 +11,8 @@
 
 import type { DamageTypeKey, EnemySpec, FleshType, StatKey } from "./data";
 import { COMPOUND, DMG_CLASS_MUL, ELEMENT_PAIR_KEY, ENEMIES, FLESH_ORDER, RIVEN_TAG_TO_KEY, scaledArmor, scaledHealth, scaledShield } from "./data";
+import type { StatusDetail } from "./status";
+import { corrosiveArmorStrip, dotPerSecond, HEAT_ARMOR_STRIP, magneticShieldMul, procRates, viralHealthMul } from "./status";
 
 /** 灵化形态面板（Incarnon Genesis）：dmg/total 为每光束/弹丸口径 */
 export interface IncarnonSpec {
@@ -128,7 +130,12 @@ export interface BuildResult {
     dmg: Partial<Record<DamageTypeKey, number>>;
     perShot: number;
     burstDps: number;
+    /** 生命阶段总持续DPS：直伤 + 异常DoT，已乘病毒增伤 */
     sustainedDps: number;
+    /** 直伤部分（护甲/肉体修正后，未乘病毒、不含异常DoT） */
+    directSustainedDps: number;
+    /** 异常状态稳态层（触发率 / 叠层 / 剥甲 / DoT 明细） */
+    status?: StatusDetail;
     timeToKill: number;
   };
 }
@@ -339,7 +346,21 @@ export function computeBuild(
   };
 
   if (enemy) {
-    result.vsEnemy = computeVsEnemy(dmgMap, ms, critFactor, fr, sustainedFr, factionMul, enemy);
+    // DoT 口径基伤（wiki）：基伤总量 × (1+基伤MOD)，不吃元素/物理%，阵营另在 DoT 层生效
+    const dotBase = w.total * (1 + (sums.dmg ?? 0));
+    result.vsEnemy = computeVsEnemy({
+      dmg: dmgMap,
+      panelTotal,
+      ms,
+      sc,
+      critFactor,
+      fr,
+      sustainedFr,
+      factionMul,
+      dotBase,
+      elemBonus: { heat: sums.heat ?? 0, toxin: sums.tox ?? 0, gas: sums.gas ?? 0 },
+      enemy,
+    });
   }
   return result;
 }
@@ -348,28 +369,41 @@ function classIndex(t: FleshType): number {
   return FLESH_ORDER.indexOf(t);
 }
 
-function computeVsEnemy(
-  dmgMap: Partial<Record<DamageTypeKey, number>>,
-  ms: number,
-  critFactor: number,
-  fr: number,
-  sustainedFr: number,
-  factionMul: number,
-  enemy: EnemyContext,
-): BuildResult["vsEnemy"] {
-  const spec = enemy.spec;
-  const lvl = enemy.level;
-  const strip = Math.min(1, Math.max(0, enemy.armorStrip ?? 0));
+function computeVsEnemy(p: {
+  dmg: Partial<Record<DamageTypeKey, number>>;
+  panelTotal: number;
+  ms: number;
+  sc: number;
+  critFactor: number;
+  fr: number;
+  sustainedFr: number;
+  factionMul: number;
+  dotBase: number;
+  elemBonus: { heat: number; toxin: number; gas: number };
+  enemy: EnemyContext;
+}): BuildResult["vsEnemy"] {
+  const spec = p.enemy.spec;
+  const lvl = p.enemy.level;
+  const manualStrip = Math.min(1, Math.max(0, p.enemy.armorStrip ?? 0));
   const health = scaledHealth(spec, lvl);
   const shield = scaledShield(spec, lvl);
-  const armor = scaledArmor(spec, lvl) * (1 - strip);
   const fi = classIndex(spec.fleshType);
   const ai = classIndex(spec.armorType);
   const si = classIndex(spec.shieldType);
 
+  // ---- 异常稳态层（status.ts：触发率按伤害占比分配，叠层 = 触发率×窗口时长） ----
+  const rates = procRates(p.dmg, p.panelTotal, p.sc, p.ms, p.sustainedFr);
+  const viral = viralHealthMul(rates.byType.viral ?? 0);
+  const magnetic = magneticShieldMul(rates.byType.magnetic ?? 0);
+  const corrosive = corrosiveArmorStrip(rates.byType.corrosive ?? 0);
+  const heatStrip = (rates.byType.heat ?? 0) > 0 ? HEAT_ARMOR_STRIP : 0;
+  // 剥甲各来源乘法叠加（wiki：手动/腐蚀/火焰相乘）
+  const armor = scaledArmor(spec, lvl) * (1 - manualStrip) * (1 - corrosive.strip) * (1 - heatStrip);
+
+  // ---- 直伤逐类型过甲（护甲值已计入异常剥甲） ----
   const eff: Partial<Record<DamageTypeKey, number>> = {};
   let effPerShot = 0;
-  for (const [t, v] of Object.entries(dmgMap) as Array<[DamageTypeKey, number]>) {
+  for (const [t, v] of Object.entries(p.dmg) as Array<[DamageTypeKey, number]>) {
     if (!v) continue;
     const table = DMG_CLASS_MUL[t];
     // DE armor rule: the type's armor-class modifier scales the *armor value*
@@ -383,22 +417,52 @@ function computeVsEnemy(
     eff[t] = effV;
     effPerShot += effV;
   }
-  // shields: toxin bypasses; shield takes shield-class multiplier
+  // 直伤护盾池：毒素/毒气绕过（与 DoT 口径一致）；护盾吃暴击（修正 v1 的忽略）
   let shieldPerShot = 0;
-  for (const [t, v] of Object.entries(dmgMap) as Array<[DamageTypeKey, number]>) {
+  for (const [t, v] of Object.entries(p.dmg) as Array<[DamageTypeKey, number]>) {
     if (!v || t === "toxin" || t === "gas") continue;
     const table = DMG_CLASS_MUL[t];
     const shieldMul = 1 + (table ? (table[si] ?? 0) : 0);
     shieldPerShot += v * shieldMul;
   }
 
-  const perShot = effPerShot * ms;
-  const burst = perShot * critFactor * fr * factionMul;
-  const sustained = perShot * critFactor * sustainedFr * factionMul;
-  // TTK: burn shields first (shield ignores crit in v1), then health
-  const sustainedShield = shieldPerShot * ms * sustainedFr * factionMul;
-  const ttkShield = sustainedShield > 0 ? shield / sustainedShield : 0;
-  const timeToKill = ttkShield + health / Math.max(1e-9, sustained);
+  const perShot = effPerShot * p.ms;
+  const burst = perShot * p.critFactor * p.fr * p.factionMul;
+  const directPerSec = perShot * p.critFactor * p.sustainedFr * p.factionMul;
+  const directShieldPerSec = shieldPerShot * p.ms * p.critFactor * p.sustainedFr * p.factionMul;
+
+  // ---- 异常 DoT 过甲 ----
+  const raw = dotPerSecond(rates, p.dotBase, p.elemBonus, p.critFactor, p.factionMul);
+  const throughArmor = (value: number, t: DamageTypeKey) => {
+    if (value <= 0) return 0;
+    const table = DMG_CLASS_MUL[t];
+    const armorMul = 1 + (table ? (table[ai] ?? 0) : 0);
+    const effArmor = armor > 0 ? armor / Math.max(0.1, armorMul) : 0;
+    const typeDr = effArmor > 0 ? effArmor / (effArmor + 300) : 0;
+    const healthMul = 1 + (table ? (table[fi] ?? 0) : 0);
+    return value * (1 - typeDr) * healthMul;
+  };
+  const shieldSide = (value: number, t: DamageTypeKey) => {
+    if (value <= 0) return 0;
+    const table = DMG_CLASS_MUL[t];
+    return value * (1 + (table ? (table[si] ?? 0) : 0));
+  };
+  const dotDps: StatusDetail["dotDps"] = {
+    slash: raw.slash, // Cinematic：无视护甲、无类型修正，直通生命
+    heat: throughArmor(raw.heat, "heat"),
+    toxin: throughArmor(raw.toxin, "toxin"),
+    gas: throughArmor(raw.gas, "gas"),
+    blast: throughArmor(raw.blast, "blast"),
+  };
+  const dotHealth = (dotDps.slash ?? 0) + (dotDps.heat ?? 0) + (dotDps.toxin ?? 0) + (dotDps.gas ?? 0) + (dotDps.blast ?? 0);
+  // 打盾 DoT：毒素/毒气绕过（与直伤一致），流血/灼烧/爆炸先扣盾（流血按真实行 → 护盾修正 ×1）
+  const dotShield = shieldSide(raw.slash, "true") + shieldSide(raw.heat, "heat") + shieldSide(raw.blast, "blast");
+
+  // ---- TTK：先盾后血；磁力只放大护盾伤害、病毒只放大生命伤害 ----
+  const shieldDps = (directShieldPerSec + dotShield) * magnetic.mul;
+  const healthDps = (directPerSec + dotHealth) * viral.mul;
+  const ttkShield = shieldDps > 0 ? shield / shieldDps : 0;
+  const timeToKill = ttkShield + health / Math.max(1e-9, healthDps);
 
   return {
     id: spec.id,
@@ -409,7 +473,20 @@ function computeVsEnemy(
     dmg: eff,
     perShot,
     burstDps: burst,
-    sustainedDps: sustained,
+    sustainedDps: healthDps,
+    directSustainedDps: directPerSec,
+    status: {
+      procsPerSec: rates.total,
+      procRate: rates.byType,
+      viralStacks: viral.stacks,
+      viralMul: viral.mul,
+      magneticStacks: magnetic.stacks,
+      magneticMul: magnetic.mul,
+      corrosiveStrip: corrosive.strip,
+      heatStrip,
+      dotDps,
+      dotDpsTotal: dotHealth,
+    },
     timeToKill,
   };
 }

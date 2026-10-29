@@ -301,12 +301,13 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
                         if k in DAMAGE_TYPES and v:
                             idmg[k] = round(idmg.get(k, 0) + v, 4)
                 if idmg and main_inc.get("speed"):
+                    # wfcd attack 层的 crit_chance/status_chance 是百分数（20 = 20%），武器层才是小数
                     inc = {
                         "dmg": idmg,
                         "total": round(sum(idmg.values()), 3),
-                        "cc": main_inc.get("crit_chance"),
+                        "cc": (main_inc.get("crit_chance") or 0) / 100.0,
                         "cd": main_inc.get("crit_mult"),
-                        "sc": main_inc.get("status_chance"),
+                        "sc": (main_inc.get("status_chance") or 0) / 100.0,
                         "fr": main_inc.get("speed"),
                     }
                     extra = INCARNON_WIKI.get(uid)

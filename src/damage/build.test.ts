@@ -21,7 +21,8 @@ const byName = (en: string): ModCard => {
   if (!m) throw new Error(`mod not found: ${en}`);
   return m;
 };
-const riflePool = allMods.filter((m) => m.compat === "rifle");
+// Braton Prime is an Auto trigger: semi-auto-only mods (Cannonade) cannot equip, mirroring the UI pool filter
+const riflePool = allMods.filter((m) => m.compat === "rifle" && !m.trigger);
 
 describe("makeUnits", () => {
   it("separates element couples from singles and dedupes pools", () => {
@@ -191,5 +192,36 @@ describe("faction mods in suggestions (驱逐/灭亡/净化)", () => {
   it("keeps faction mods out of the no-enemy build", () => {
     const s = suggestBuild({ weapon: weapon("Braton Prime"), pool: riflePool, preset: "corrosive" });
     expect(s.mods.some((m) => Object.keys(m.stats).some((k) => k.startsWith("fac")))).toBe(false);
+  });
+});
+
+describe("galvanized mods (镀层) & trigger restrictions", () => {
+  it("ships stack specs, cond notes and the semi-auto trigger restriction", () => {
+    const chamber = byName("Galvanized Chamber");
+    expect(chamber.stats).toEqual({ ms: 0.8 });
+    expect(chamber.stack).toEqual({ stat: "ms", per: 0.3, max: 5 });
+    expect(chamber.cond).toBeUndefined();
+    const scope = byName("Galvanized Scope");
+    expect(scope.stats).toEqual({});
+    expect(scope.stack).toEqual({ stat: "cc", per: 0.4, max: 5, base: 1.2 });
+    expect(byName("Galvanized Aptitude").cond).toBe(true);
+    expect(byName("Semi-Shotgun Cannonade").trigger).toBe("Semi");
+  });
+
+  it("counts kill stacks only once at least one is active", () => {
+    const w = weapon("Braton Prime");
+    const m = byName("Galvanized Chamber");
+    const base = computeBuild(w, [m]);
+    const zero = computeBuild(w, [m], null, null, { [m.id]: 0 });
+    expect(zero.ms).toBeCloseTo(base.ms, 6); // passive +80% only
+    expect(zero.ms).toBeCloseTo(1.8, 6);
+    const full = computeBuild(w, [m], null, null, { [m.id]: 5 });
+    expect(full.ms).toBeCloseTo(1 * (1 + 0.8 + 5 * 0.3), 6);
+    // Scope: the +120% activation buff only rides on an active kill stack
+    const scope = byName("Galvanized Scope");
+    const off = computeBuild(w, [scope], null, null, { [scope.id]: 0 });
+    expect(off.cc).toBeCloseTo(w.cc, 6);
+    const one = computeBuild(w, [scope], null, null, { [scope.id]: 1 });
+    expect(one.cc).toBeCloseTo(w.cc * (1 + 1.2 + 0.4), 6);
   });
 });

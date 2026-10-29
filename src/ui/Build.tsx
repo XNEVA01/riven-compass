@@ -60,6 +60,11 @@ interface Strings {
   statMarginal: string;
   statHint: string;
   stat: { cc: string; cd: string; sc: string; ms: string; fr: string; mag: string; rl: string };
+  /** 镀层击杀叠层：步进器标签与文案（|P| 百分数 / |S| 词条名 / |M| 满层） */
+  killStacks: string;
+  stackKill: string;
+  stackBase: string;
+  condNote: string;
 }
 
 const weapons = combat.weapons as unknown as WeaponPanel[];
@@ -123,7 +128,7 @@ function typeLabel(t: string, lang: Lang): string {
   return TYPE_ZH[t] ?? t;
 }
 
-function modStatLine(m: ModCard, lang: Lang): string {
+function modStatLine(m: ModCard, lang: Lang, t: Strings): string {
   const parts: string[] = [];
   for (const [k, v] of Object.entries(m.stats) as Array<[StatKey, number]>) {
     if (!v) continue;
@@ -131,6 +136,12 @@ function modStatLine(m: ModCard, lang: Lang): string {
     // 穿透是平值（如 +1.8），不带百分号；其余词条沿用百分比写法
     parts.push(`${v > 0 ? "+" : "−"}${k === "pt" ? pctN(Math.abs(v)) : pct(Math.abs(v))} ${label}`);
   }
+  if (m.stack) {
+    const label = lang === "en" ? (STAT_EN[m.stack.stat] ?? m.stack.stat) : (statZh[m.stack.stat] ?? m.stack.stat);
+    if (m.stack.base) parts.push(t.stackBase.replace("|P|", pctN(m.stack.base)).replace("|S|", label));
+    parts.push(t.stackKill.replace("|P|", pctN(m.stack.per)).replace("|S|", label).replace("|M|", String(m.stack.max)));
+  }
+  if (m.cond) parts.push(t.condNote);
   return parts.join("，");
 }
 
@@ -150,11 +161,13 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const [manualIds, setManualIds] = useState<string[] | null>(null);
   /** the mod-library search box: filter by name (zh / en), empty shows everything */
   const [poolQuery, setPoolQuery] = useState("");
+  /** 镀层击杀叠层：按 mod id 的当前层数（0 = 未触发） */
+  const [stackCounts, setStackCounts] = useState<Record<string, number>>({});
 
   const weapon = useMemo(() => (session.weaponId ? (weapons.find((w) => w.id === session.weaponId) ?? null) : null), [session.weaponId]);
   const cls = weaponClass(session.weaponId);
   const riven = useMemo(() => rivenFromCard(session.card), [session.card]);
-  const pool = useMemo(() => (weapon ? allMods.filter((m) => m.compat === weapon.compat) : []), [weapon]);
+  const pool = useMemo(() => (weapon ? allMods.filter((m) => m.compat === weapon.compat && (!m.trigger || m.trigger === weapon.trigger)) : []), [weapon]);
   const engineWeapon = useMemo(() => (session.weaponId ? weaponById(session.weaponId) : undefined), [session.weaponId]);
   const enemy: EnemyContext | null = useMemo(() => {
     if (!weapon) return null;
@@ -163,7 +176,10 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
 
   // a manual build belongs to one weapon's pool: reset when the weapon changes
   useEffect(() => {
-    if (session.weaponId) setManualIds(null);
+    if (session.weaponId) {
+      setManualIds(null);
+      setStackCounts({});
+    }
   }, [session.weaponId]);
 
   const slots = 8 - (riven ? 1 : 0);
@@ -182,12 +198,14 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const active = useMemo(() => {
     if (!weapon) return null;
     if (manualMods) {
-      const result = computeBuild(weapon, manualMods, riven, enemy);
+      const result = computeBuild(weapon, manualMods, riven, enemy, stackCounts);
       return { mods: manualMods, result, score: scoreResult(result) };
     }
     if (!suggestion) return null;
-    return { mods: suggestion.mods, result: suggestion.result, score: suggestion.score };
-  }, [weapon, manualMods, riven, enemy, suggestion]);
+    // 跟随建议时同样叠算手动设置的击杀层数（无镀层层数时与建议结果一致）
+    const result = computeBuild(weapon, suggestion.mods, riven, enemy, stackCounts);
+    return { mods: suggestion.mods, result, score: scoreResult(result) };
+  }, [weapon, manualMods, riven, enemy, suggestion, stackCounts]);
 
   const marginals = useMemo(() => (weapon && active ? marginalTable(weapon, active.mods, riven, enemy) : null), [weapon, active, riven, enemy]);
 
@@ -409,26 +427,54 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                     </span>
                   </li>
                 )}
-                {active.mods.map((m, i) => (
-                  <li key={m.id}>
-                    <span className="slot-no">{i + 1 + (riven ? 1 : 0)}</span>
-                    <span className="slot-name">{lang === "en" ? m.en : m.zh}</span>
-                    <span className="slot-stats">{modStatLine(m, lang)}</span>
-                    {manualMods && (
-                      <span className="slot-ops">
-                        <button type="button" className="text-btn" aria-label={t.up} title={t.up} disabled={i === 0} onClick={() => moveSlot(i, -1)}>
-                          ↑
-                        </button>
-                        <button type="button" className="text-btn" aria-label={t.down} title={t.down} disabled={i === active.mods.length - 1} onClick={() => moveSlot(i, 1)}>
-                          ↓
-                        </button>
-                        <button type="button" className="text-btn" aria-label={t.remove} title={t.remove} onClick={() => removeSlot(i)}>
-                          ✕
-                        </button>
-                      </span>
-                    )}
-                  </li>
-                ))}
+                {active.mods.map((m, i) => {
+                  const st = m.stack;
+                  return (
+                    <li key={m.id}>
+                      <span className="slot-no">{i + 1 + (riven ? 1 : 0)}</span>
+                      <span className="slot-name">{lang === "en" ? m.en : m.zh}</span>
+                      <span className="slot-stats">{modStatLine(m, lang, t)}</span>
+                      {st && (
+                        <span className="slot-stack">
+                          <button
+                            type="button"
+                            className="text-btn"
+                            aria-label={t.killStacks}
+                            disabled={(stackCounts[m.id] ?? 0) <= 0}
+                            onClick={() => setStackCounts((c) => ({ ...c, [m.id]: Math.max(0, (c[m.id] ?? 0) - 1) }))}
+                          >
+                            −
+                          </button>
+                          <span className="stack-n">
+                            {t.killStacks} {stackCounts[m.id] ?? 0}/{st.max}
+                          </span>
+                          <button
+                            type="button"
+                            className="text-btn"
+                            aria-label={t.killStacks}
+                            disabled={(stackCounts[m.id] ?? 0) >= st.max}
+                            onClick={() => setStackCounts((c) => ({ ...c, [m.id]: Math.min(st.max, (c[m.id] ?? 0) + 1) }))}
+                          >
+                            +
+                          </button>
+                        </span>
+                      )}
+                      {manualMods && (
+                        <span className="slot-ops">
+                          <button type="button" className="text-btn" aria-label={t.up} title={t.up} disabled={i === 0} onClick={() => moveSlot(i, -1)}>
+                            ↑
+                          </button>
+                          <button type="button" className="text-btn" aria-label={t.down} title={t.down} disabled={i === active.mods.length - 1} onClick={() => moveSlot(i, 1)}>
+                            ↓
+                          </button>
+                          <button type="button" className="text-btn" aria-label={t.remove} title={t.remove} onClick={() => removeSlot(i)}>
+                            ✕
+                          </button>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ol>
             </section>
 
@@ -462,7 +508,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                         }}
                       >
                         <span className="slot-name">{lang === "en" ? m.en : m.zh}</span>
-                        <span className="slot-stats">{modStatLine(m, lang)}</span>
+                        <span className="slot-stats">{modStatLine(m, lang, t)}</span>
                       </button>
                     </li>
                   );

@@ -40,6 +40,12 @@ export interface ModCard {
   drain?: number;
   rank?: number;
   stats: Partial<Record<StatKey, number>>;
+  /** equip restriction from the mod description (Cannonade etc.): must equal the weapon's trigger */
+  trigger?: string;
+  /** kill-stack conditional (镀层): contribution = (base ?? 0) + count x per while count > 0 */
+  stack?: { stat: StatKey; per: number; max: number; base?: number };
+  /** carries unmodelable conditional bonuses: displayed as a note, never counted */
+  cond?: true;
 }
 
 /** riven contribution, already normalized to semantic keys (use RIVEN_TAG_TO_KEY) */
@@ -90,8 +96,8 @@ export interface BuildResult {
 const PHYS: DamageTypeKey[] = ["impact", "puncture", "slash"];
 const BASE_ELE: DamageTypeKey[] = ["heat", "cold", "electricity", "toxin"];
 
-/** collect summed stats from mods + riven; mods order defines element pairing order */
-export function collectStats(mods: Array<ModCard | null | undefined>, riven?: RivenContribution | null) {
+/** collect summed stats from mods + riven (+ galvanized kill stacks); mods order defines element pairing order */
+export function collectStats(mods: Array<ModCard | null | undefined>, riven?: RivenContribution | null, stacks?: Record<string, number>) {
   const sums: Record<string, number> = {};
   const elementOrder: string[] = [];
   const bump = (k: StatKey, v: number) => {
@@ -104,6 +110,11 @@ export function collectStats(mods: Array<ModCard | null | undefined>, riven?: Ri
       if (["heat", "cold", "elec", "tox"].includes(k) && v > 0 && !elementOrder.includes(k)) {
         elementOrder.push(k);
       }
+    }
+    // 镀层击杀叠层：0 层不生效，≥1 层 = base + count x per
+    if (m.stack) {
+      const count = stacks?.[m.id] ?? 0;
+      if (count > 0) bump(m.stack.stat, (m.stack.base ?? 0) + count * m.stack.per);
     }
   }
   if (riven) {
@@ -231,8 +242,14 @@ export function synthesize(w: WeaponPanel, sums: Record<string, number>, element
   return { dmg, extraMul };
 }
 
-export function computeBuild(w: WeaponPanel, mods: Array<ModCard | null | undefined> = [], riven?: RivenContribution | null, enemy?: EnemyContext | null): BuildResult {
-  const { sums, elementOrder } = collectStats(mods ?? [], riven);
+export function computeBuild(
+  w: WeaponPanel,
+  mods: Array<ModCard | null | undefined> = [],
+  riven?: RivenContribution | null,
+  enemy?: EnemyContext | null,
+  stacks?: Record<string, number>,
+): BuildResult {
+  const { sums, elementOrder } = collectStats(mods ?? [], riven, stacks);
   const { dmg: dmgMap } = synthesize(w, sums, elementOrder);
 
   const panelTotal = Object.values(dmgMap).reduce((a, b) => a + (b ?? 0), 0);

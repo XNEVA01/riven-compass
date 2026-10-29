@@ -139,6 +139,69 @@ def parse_stat(text: str) -> tuple[str, float] | tuple[str, None]:
     return "", None
 
 
+# ---------------- galvanized (镀层) kill stacks ----------------
+# Galvanized mods: passive line(s) + an On Kill / On Weak Point section; wfcd
+# joins those sections with a literal "\n" (backslash + n, not a newline).
+# Modelable kill stacks become a stack spec (contribution = base? + count x per
+# once the player maintains count > 0); "per Status Type" style conditionals
+# are not modelable -> cond: true (displayed as a note, never counted).
+STACK_STATS = {"Multishot": "ms", "Critical Chance": "cc", "Status Chance": "sc", "Damage": "dmg"}
+_STACK_ALT = "|".join(STACK_STATS)
+STACK_LINE_RX = re.compile(rf"^[+-]?([\d.]+)% ({_STACK_ALT})(?: when Aiming)? for [\d.]+s\.? Stacks up to (\d+)x")
+STACK_BASE_RX = re.compile(rf"^[+-]?([\d.]+)% ({_STACK_ALT})(?: when Aiming)? for [\d.]+s")
+
+
+def parse_galvanized(lines: list[str]) -> tuple[dict[str, float], dict | None, bool]:
+    """Galvanized top-rank lines -> (passive stats, stack spec, has-unmodeled-cond)."""
+    frags: list[str] = []
+    for el in lines:
+        frags.extend(re.split(r"\\n", el))
+    stats: dict[str, float] = {}
+    stack: dict | None = None
+    base: tuple[str, float] | None = None
+    cond = False
+    mode = "passive"
+    for f in (x.strip() for x in frags):
+        if not f:
+            continue
+        low = f.lower()
+        if low.startswith("on kill") or low.startswith("on weak point kill"):
+            mode = "kill"
+            continue
+        if low.startswith("on weak point hit") or low.startswith("on hit"):
+            mode = "hit"
+            continue
+        if mode == "passive":
+            key, val = parse_stat(f)
+            if key:
+                stats[key] = round(val, 4)
+        elif mode == "kill":
+            m = STACK_LINE_RX.match(f)
+            if m:
+                stat = STACK_STATS[m.group(2)]
+                stack = {"stat": stat, "per": round(float(m.group(1)) / 100.0, 4), "max": int(m.group(3))}
+                if base and base[0] == stat:
+                    stack["base"] = base[1]
+            else:
+                cond = True
+        else:  # on-hit activation buff, e.g. Scope's +120% CC while aiming
+            m = STACK_BASE_RX.match(f)
+            if m:
+                base = (STACK_STATS[m.group(2)], round(float(m.group(1)) / 100.0, 4))
+            else:
+                cond = True
+    if base is not None and stack is None:
+        cond = True  # activation buff with no kill stack to piggyback on
+    return stats, stack, cond
+
+
+# mod description equip restrictions, e.g. Cannonade:
+#   "Only compatible with Semi-Auto Trigger." -> must equal the weapon's
+#   wfcd trigger value (normalized: Semi-Auto -> Semi)
+RESTRICT_TRIGGER_RX = re.compile(r"Only compatible with ([\w-]+) Trigger")
+TRIGGER_NORM = {"Semi-Auto": "Semi"}
+
+
 # ---------------- source loading ----------------
 
 def load_from_tgz(tgz: Path) -> dict[str, dict]:
@@ -254,22 +317,30 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
             continue
         top = ls[-1].get("stats") or []
         stats: dict[str, float] = {}
+        stack: dict | None = None
+        cond = False
         rejected = False
-        for line in top:
-            key, val = parse_stat(line)
-            if key:
-                stats[key] = round(val, 4)
-            elif val is None and any(mk in line for mk in REJECT_MARKERS):
-                rejected = True
-                break
+        if (m.get("name") or "").startswith("Galvanized"):
+            # 镀层：击杀叠层可建模；其余条件词条以 cond 注记展示
+            stats, stack, cond = parse_galvanized(top)
+        else:
+            for line in top:
+                key, val = parse_stat(line)
+                if key:
+                    stats[key] = round(val, 4)
+                elif val is None and any(mk in line for mk in REJECT_MARKERS):
+                    rejected = True
+                    break
         if rejected:
             skipped_conditional += 1
             continue
-        if not stats:
+        if not stats and not stack:
             skipped_unparsed += 1
             continue
         uid = m["uniqueName"]
         zh = (zh_mods.get(uid) or {}).get("name") or m["name"]
+        mt = RESTRICT_TRIGGER_RX.search(m.get("description") or "")
+        trigger = TRIGGER_NORM.get(mt.group(1), mt.group(1)) if mt else None
         entry = {
             "id": uid,
             "zh": zh,
@@ -281,6 +352,9 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
             "rarity": m.get("rarity"),
             "stats": stats,
             "variant": bool(VARIANT_RX.search(uid)),
+            **({"trigger": trigger} if trigger else {}),
+            **({"stack": stack} if stack else {}),
+            **({"cond": True} if cond else {}),
         }
         prev = seen_best.get(uid)
         if prev is None or (entry["rank"] or 0) >= (prev["rank"] or 0):

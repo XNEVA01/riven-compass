@@ -2640,6 +2640,23 @@ dialog.lightbox img {
   font-size: 13px;
   line-height: 1.2;
 }
+/* galvanized kill-stack stepper inside a slot */
+.slot-stack {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+}
+.slot-stack .stack-n {
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+.slot-stack .text-btn {
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1.2;
+}
 /* the mod pool: every mod of this weapon's class, click to slot / unslot */
 .build-pool {
   margin: 0;

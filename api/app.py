@@ -389,7 +389,8 @@ def share_redirect(code):
     <meta name="twitter:image" content="https://xneva-ai.com/og-cover.jpg" />
   </head>
   <body>
-    正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript>
+    <p>正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript></p>
+    <p><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">新ICP备2025018710号</a></p>
     <script>location.replace({json.dumps(target)});</script>
   </body>
 </html>"""

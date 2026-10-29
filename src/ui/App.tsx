@@ -780,6 +780,11 @@ export function App() {
             {projTail}
           </p>
           <p className="foot-meta">{s.foot.unofficial}</p>
+          <p className="foot-meta">
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">
+              新ICP备2025018710号
+            </a>
+          </p>
         </footer>
 
         <input

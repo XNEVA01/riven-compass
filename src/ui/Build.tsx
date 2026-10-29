@@ -15,7 +15,7 @@ import { marginalTable, PRESETS, scoreResult, suggestBuild } from "../damage/bui
 import type { StatKey } from "../damage/data";
 import { ENEMIES, RIVEN_TAG_TO_KEY, TYPE_ZH } from "../damage/data";
 import type { EnemyContext, ModCard, RivenContribution, WeaponPanel } from "../damage/engine";
-import { computeBuild } from "../damage/engine";
+import { computeBuild, incarnonPanel } from "../damage/engine";
 import type { StatMarginal, TierRow, WantedRow, WantedSpec } from "../damage/optimize";
 import { expectedRiven, statMarginals, threeTier } from "../damage/optimize";
 import combat from "../data/combat.json";
@@ -65,6 +65,15 @@ interface Strings {
   stackKill: string;
   stackBase: string;
   condNote: string;
+  /** 同族武器（普通/Prime/集团等）与灵化形态切换 */
+  variants: string;
+  variantNote: string;
+  form: { base: string; incarnon: string };
+  formNote: string;
+  /** 口径注记：只算直接伤害 */
+  directNote: string;
+  /** 紫卡弱点词条为条件加成，不建模 */
+  weakNote: string;
 }
 
 const weapons = combat.weapons as unknown as WeaponPanel[];
@@ -123,6 +132,21 @@ const pctN = (n: number) => `${Math.round(n * 1000) / 10}`;
 const num = (n: number) => Math.round(n).toLocaleString("en-US");
 const sec = (n: number) => (n > 600 ? `${num(n / 60)} min` : `${Math.round(n * 10) / 10} s`);
 
+/** 同族识别（紫卡按家族通用）：去掉版本前后缀得到家族名 */
+function familyKey(en: string): string {
+  return en
+    .replace(/^MK1-/, "")
+    .replace(/^(Telos|Synoid|Rakta|Secura|Sancti|Vaykor) /, "")
+    .replace(/ (Prime|Vandal|Wraith|Dex|Prisma|Mara)$/, "");
+}
+/** 家族内排序：基础 → Prime → Vandal → Wraith → MK1 → 其余 */
+function variantRank(en: string, key: string): number {
+  return en === key ? 0 : / Prime$/.test(en) ? 1 : / Vandal$/.test(en) ? 2 : / Wraith$/.test(en) ? 3 : /^MK1-/.test(en) ? 4 : 5;
+}
+
+/** 紫卡里的条件词条（仅命中弱点生效）：引擎不建模，页面注记 */
+const WEAK_TAGS = ["WeaponWeakpointCriticalChance", "WeaponWeakpointDamage"];
+
 function typeLabel(t: string, lang: Lang): string {
   if (lang === "en") return t === "impact" ? "Impact" : t === "puncture" ? "Puncture" : t === "slash" ? "Slash" : t[0].toUpperCase() + t.slice(1);
   return TYPE_ZH[t] ?? t;
@@ -163,11 +187,28 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const [poolQuery, setPoolQuery] = useState("");
   /** 镀层击杀叠层：按 mod id 的当前层数（0 = 未触发） */
   const [stackCounts, setStackCounts] = useState<Record<string, number>>({});
+  /** 同族武器选择（紫卡按家族通用，面板随版本切换）；null = 跟随导览页选中的那把 */
+  const [variantId, setVariantId] = useState<string | null>(null);
+  /** 灵化形态视图（Incarnon Genesis）：base = 基础形态（默认） */
+  const [form, setForm] = useState<"base" | "incarnon">("base");
 
   const weapon = useMemo(() => (session.weaponId ? (weapons.find((w) => w.id === session.weaponId) ?? null) : null), [session.weaponId]);
   const cls = weaponClass(session.weaponId);
   const riven = useMemo(() => rivenFromCard(session.card), [session.card]);
-  const pool = useMemo(() => (weapon ? allMods.filter((m) => m.compat === weapon.compat && (!m.trigger || m.trigger === weapon.trigger)) : []), [weapon]);
+  /** 同族武器（普通/Prime/集团/亡魂等）：紫卡通用，面板可切换 */
+  const family = useMemo(() => {
+    if (!weapon) return [];
+    const key = familyKey(weapon.en);
+    return weapons.filter((x) => x.cls === weapon.cls && familyKey(x.en) === key).sort((a, b) => variantRank(a.en, key) - variantRank(b.en, key) || a.en.localeCompare(b.en));
+  }, [weapon]);
+  /** 面板所用武器：同族所选版本（默认导览页选中的那把） */
+  const selected = useMemo(() => {
+    if (!weapon) return null;
+    return (variantId && family.find((x) => x.id === variantId)) || weapon;
+  }, [weapon, family, variantId]);
+  /** 计算用面板：灵化形态 = 形态值替换（多重基数=固有光束数，弹匣固定） */
+  const activeWeapon = useMemo(() => (selected && form === "incarnon" && selected.incarnon ? incarnonPanel(selected) : selected), [selected, form]);
+  const pool = useMemo(() => (selected ? allMods.filter((m) => m.compat === selected.compat && (!m.trigger || m.trigger === selected.trigger)) : []), [selected]);
   const engineWeapon = useMemo(() => (session.weaponId ? weaponById(session.weaponId) : undefined), [session.weaponId]);
   const enemy: EnemyContext | null = useMemo(() => {
     if (!weapon) return null;
@@ -179,42 +220,52 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     if (session.weaponId) {
       setManualIds(null);
       setStackCounts({});
+      setVariantId(null);
+      setForm("base");
     }
   }, [session.weaponId]);
 
   const slots = 8 - (riven ? 1 : 0);
 
   const suggestion = useMemo(() => {
-    if (!weapon || manualIds != null) return null;
-    return suggestBuild({ weapon, pool, slots, riven, preset, enemy });
-  }, [weapon, pool, slots, riven, preset, enemy, manualIds]);
+    if (!activeWeapon || manualIds != null) return null;
+    return suggestBuild({ weapon: activeWeapon, pool, slots, riven, preset, enemy });
+  }, [activeWeapon, pool, slots, riven, preset, enemy, manualIds]);
 
   const manualMods = useMemo(() => {
-    if (manualIds == null || !weapon) return null;
+    if (manualIds == null || !selected) return null;
     return manualIds.map((id) => pool.find((m) => m.id === id)).filter((m): m is ModCard => !!m);
-  }, [manualIds, pool, weapon]);
+  }, [manualIds, pool, selected]);
 
   /** the build the page shows: the player's own mods, or the suggestion while following it */
   const active = useMemo(() => {
-    if (!weapon) return null;
+    if (!activeWeapon) return null;
     if (manualMods) {
-      const result = computeBuild(weapon, manualMods, riven, enemy, stackCounts);
+      const result = computeBuild(activeWeapon, manualMods, riven, enemy, stackCounts);
       return { mods: manualMods, result, score: scoreResult(result) };
     }
     if (!suggestion) return null;
     // 跟随建议时同样叠算手动设置的击杀层数（无镀层层数时与建议结果一致）
-    const result = computeBuild(weapon, suggestion.mods, riven, enemy, stackCounts);
+    const result = computeBuild(activeWeapon, suggestion.mods, riven, enemy, stackCounts);
     return { mods: suggestion.mods, result, score: scoreResult(result) };
-  }, [weapon, manualMods, riven, enemy, suggestion, stackCounts]);
+  }, [activeWeapon, manualMods, riven, enemy, suggestion, stackCounts]);
 
-  const marginals = useMemo(() => (weapon && active ? marginalTable(weapon, active.mods, riven, enemy) : null), [weapon, active, riven, enemy]);
+  const marginals = useMemo(() => (activeWeapon && active ? marginalTable(activeWeapon, active.mods, riven, enemy) : null), [activeWeapon, active, riven, enemy]);
 
   const tiers = useMemo(() => {
-    if (!weapon || !active) return null;
-    return threeTier({ weapon, rivenWeapon: engineWeapon, pool, preset, enemy, riven, current: { mods: active.mods, score: active.score, result: active.result, steps: [] } });
-  }, [weapon, engineWeapon, pool, preset, enemy, riven, active]);
+    if (!activeWeapon || !active) return null;
+    return threeTier({
+      weapon: activeWeapon,
+      rivenWeapon: engineWeapon,
+      pool,
+      preset,
+      enemy,
+      riven,
+      current: { mods: active.mods, score: active.score, result: active.result, steps: [] },
+    });
+  }, [activeWeapon, engineWeapon, pool, preset, enemy, riven, active]);
 
-  const statMargins = useMemo(() => (weapon && active && riven ? statMarginals(weapon, active.mods, riven, enemy) : null), [weapon, active, riven, enemy]);
+  const statMargins = useMemo(() => (activeWeapon && active && riven ? statMarginals(activeWeapon, active.mods, riven, enemy) : null), [activeWeapon, active, riven, enemy]);
 
   /** the coach target as the expected riven's spec: rows of alternatives with a roll bar or a typed value */
   const wanted = useMemo<WantedSpec | null>(() => {
@@ -234,13 +285,16 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     return sets.length ? { sets, wantNeg: t.wantNeg, allowedNeg: t.allowedNeg } : null;
   }, [engineWeapon, cls, session.target]);
 
-  const expected = useMemo(() => (weapon && cls && active && wanted ? expectedRiven(cls, wanted, weapon, active.mods, enemy) : null), [weapon, cls, active, wanted, enemy]);
+  const expected = useMemo(
+    () => (activeWeapon && cls && active && wanted ? expectedRiven(cls, wanted, activeWeapon, active.mods, enemy) : null),
+    [activeWeapon, cls, active, wanted, enemy],
+  );
 
   const expectedRow = useMemo<TierRow | null>(() => {
-    if (!weapon || !expected?.riven) return null;
-    const sug = suggestBuild({ weapon, pool, slots: 7, riven: expected.riven, preset, enemy });
+    if (!activeWeapon || !expected?.riven) return null;
+    const sug = suggestBuild({ weapon: activeWeapon, pool, slots: 7, riven: expected.riven, preset, enemy });
     return { score: sug.score, result: sug.result, mods: sug.mods, riven: expected.riven };
-  }, [weapon, pool, expected, preset, enemy]);
+  }, [activeWeapon, pool, expected, preset, enemy]);
 
   const traitRows = useMemo(() => {
     if (!statMargins || !cls) return [];
@@ -262,7 +316,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     return rows;
   }, [statMargins, cls, session.card]);
 
-  if (!weapon || !cls) {
+  if (!weapon || !cls || !selected || !activeWeapon) {
     return (
       <main className="coach">
         <section className="panel">
@@ -295,8 +349,8 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     setManualIds(next);
   };
   const applyOptimal = () => {
-    if (!weapon) return;
-    const sug = suggestBuild({ weapon, pool, slots, riven, preset, enemy });
+    if (!activeWeapon) return;
+    const sug = suggestBuild({ weapon: activeWeapon, pool, slots, riven, preset, enemy });
     setManualIds(sug.mods.map((m) => m.id));
   };
 
@@ -318,26 +372,57 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
       <div className="col-left">
         <section className="panel">
           <div className="panel-h">
-            <h2>{weaponName(session.weaponId, lang)}</h2>
+            <h2>{selected.id !== weapon.id ? (lang === "en" ? selected.en : selected.zh) : weaponName(session.weaponId, lang)}</h2>
           </div>
           <p className="muted small">
-            {num(weapon.total)} · CC {pct(weapon.cc)} / CD x{weapon.cd} / SC {pct(weapon.sc)}
+            {num(activeWeapon.total)} · CC {pct(activeWeapon.cc)} / CD x{activeWeapon.cd} / SC {pct(activeWeapon.sc)}
           </p>
+          {family.length > 1 && (
+            <div className="build-switch">
+              <span className="muted small">{t.variants}</span>
+              <Segmented
+                label={t.variants}
+                value={selected.id}
+                onChange={(v) => setVariantId(v === weapon.id ? null : v)}
+                options={family.map((x) => ({ value: x.id, label: lang === "en" ? x.en : x.zh }))}
+              />
+            </div>
+          )}
+          {selected.incarnon && (
+            <div className="build-switch">
+              <span className="muted small">{t.form.incarnon}</span>
+              <Segmented
+                label={t.form.incarnon}
+                value={form}
+                onChange={(v) => setForm(v === "incarnon" ? "incarnon" : "base")}
+                options={[
+                  { value: "base", label: t.form.base },
+                  { value: "incarnon", label: t.form.incarnon },
+                ]}
+              />
+            </div>
+          )}
+          {selected.id !== weapon.id && <p className="muted small">{t.variantNote}</p>}
           <div className="build-riven">
             <p className="muted small">{t.riven}</p>
             {riven ? (
-              <ul className="build-traits">
-                {session.card.pos.map((tr, i) => (
-                  <li key={tr.tag || i}>
-                    {statName(cls, tr.tag, lang)} <b>{formatDisplay(statOf(cls, tr.tag), tr.shown ?? 0)}</b>
-                  </li>
-                ))}
-                {session.card.neg && (
-                  <li className="neg">
-                    {statName(cls, session.card.neg.tag, lang)} <b>{formatDisplay(statOf(cls, session.card.neg.tag), session.card.neg.shown ?? 0)}</b>
-                  </li>
+              <>
+                <ul className="build-traits">
+                  {session.card.pos.map((tr, i) => (
+                    <li key={tr.tag || i}>
+                      {statName(cls, tr.tag, lang)} <b>{formatDisplay(statOf(cls, tr.tag), tr.shown ?? 0)}</b>
+                    </li>
+                  ))}
+                  {session.card.neg && (
+                    <li className="neg">
+                      {statName(cls, session.card.neg.tag, lang)} <b>{formatDisplay(statOf(cls, session.card.neg.tag), session.card.neg.shown ?? 0)}</b>
+                    </li>
+                  )}
+                </ul>
+                {(session.card.pos.some((tr) => WEAK_TAGS.includes(tr.tag)) || (session.card.neg != null && WEAK_TAGS.includes(session.card.neg.tag))) && (
+                  <p className="muted small">{t.weakNote}</p>
                 )}
-              </ul>
+              </>
             ) : (
               <p className="empty good">{t.noRiven}</p>
             )}
@@ -530,6 +615,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
               <div className="panel-h">
                 <h2>{t.panel}</h2>
               </div>
+              <p className="muted small">{form === "incarnon" ? `${t.directNote} ${t.formNote}` : t.directNote}</p>
               <dl className="build-figs">
                 <div>
                   <dt>{t.perShot}</dt>

@@ -2350,6 +2350,14 @@ dialog.lightbox img {
 }
 
 /* ---------- 配卡 build page ---------- */
+/* 同族武器 / 灵化形态切换行 */
+.build-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  flex-wrap: wrap;
+}
 .build-riven {
   margin-top: 10px;
 }

@@ -201,6 +201,15 @@ def parse_galvanized(lines: list[str]) -> tuple[dict[str, float], dict | None, b
 RESTRICT_TRIGGER_RX = re.compile(r"Only compatible with ([\w-]+) Trigger")
 TRIGGER_NORM = {"Semi-Auto": "Semi"}
 
+# Incarnon form mechanics verified on the wiki (wfcd carries only the panel
+# numbers, not the form behavior): beams = innate beam count (enters the
+# multishot base, all beams can lock a single target), mag = the form's fixed
+# separate magazine (3 rounds per charge, NOT affected by magazine mods).
+INCARNON_WIKI = {
+    "/Lotus/Weapons/Tenno/Shotgun/FullAutoShotgun": {"beams": 3, "mag": 150},  # Boar
+    "/Lotus/Weapons/Tenno/Shotgun/PrimeBoar": {"beams": 3, "mag": 150},         # Boar Prime
+}
+
 
 # ---------------- source loading ----------------
 
@@ -279,6 +288,30 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
                 ), default=None)
                 if main and main.get("charge_time"):
                     charge = main["charge_time"]
+            # 灵化形态（Incarnon Genesis）：wfcd 把形态面板放在 attacks[] 里；
+            # damage 是每光束/弹丸口径，AoE/Radial 段是着点爆炸（对单体也生效，并入）
+            inc = None
+            inc_atks = [a for a in (w.get("attacks") or []) if "Incarnon" in (a.get("name") or "")]
+            if inc_atks:
+                main_inc = next((a for a in inc_atks if a.get("name") == "Incarnon Form"), inc_atks[0])
+                extras = [a for a in inc_atks if a is not main_inc and a.get("name") in ("Incarnon Form AoE", "Incarnon Form Radial Attack")]
+                idmg: dict[str, float] = {}
+                for a in [main_inc, *extras]:
+                    for k, v in (a.get("damage") or {}).items():
+                        if k in DAMAGE_TYPES and v:
+                            idmg[k] = round(idmg.get(k, 0) + v, 4)
+                if idmg and main_inc.get("speed"):
+                    inc = {
+                        "dmg": idmg,
+                        "total": round(sum(idmg.values()), 3),
+                        "cc": main_inc.get("crit_chance"),
+                        "cd": main_inc.get("crit_mult"),
+                        "sc": main_inc.get("status_chance"),
+                        "fr": main_inc.get("speed"),
+                    }
+                    extra = INCARNON_WIKI.get(uid)
+                    if extra:
+                        inc.update(extra)
             panel[uid] = {
                 "id": uid,
                 "zh": roster[uid]["name"]["zh"],
@@ -296,6 +329,7 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
                 "omega": w.get("omegaAttenuation"),
                 "trigger": w.get("trigger"),
                 **({"charge": round(charge, 3)} if charge else {}),
+                **({"incarnon": inc} if inc else {}),
                 "cls": roster[uid]["cls"],
                 "ips": roster[uid].get("ips"),
                 "tags": roster[uid].get("tags"),

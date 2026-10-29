@@ -12,6 +12,20 @@
 import type { DamageTypeKey, EnemySpec, FleshType, StatKey } from "./data";
 import { COMPOUND, DMG_CLASS_MUL, ELEMENT_PAIR_KEY, ENEMIES, FLESH_ORDER, RIVEN_TAG_TO_KEY, scaledArmor, scaledHealth, scaledShield } from "./data";
 
+/** 灵化形态面板（Incarnon Genesis）：dmg/total 为每光束/弹丸口径 */
+export interface IncarnonSpec {
+  dmg: Partial<Record<DamageTypeKey, number>>;
+  total: number;
+  cc: number;
+  cd: number;
+  sc: number;
+  fr: number;
+  /** 固有光束/弹丸数（Wiki 核验，如野猪 3 条链式光束）：并入多重射击基数 */
+  beams?: number;
+  /** 形态独立弹匣（固定值，不受弹匣 MOD 影响；缺省回落基础弹匣） */
+  mag?: number;
+}
+
 export interface WeaponPanel {
   id: string;
   en: string;
@@ -29,6 +43,32 @@ export interface WeaponPanel {
   omega?: number;
   trigger?: string;
   charge?: number;
+  /** 灵化形态（Incarnon Genesis）面板，存在即代表该武器可灵化 */
+  incarnon?: IncarnonSpec;
+  /** 弹匣为形态固定值：弹匣容量 MOD 不生效（Wiki：形态弹匣不受 MOD 影响） */
+  fixedMag?: boolean;
+  /** game.json 名录的武器类别（同族版本一致，用于家族归组） */
+  cls?: string;
+}
+
+/** 灵化形态面板替换：伤害/暴击/射速换成形态值，ms=固有光束数，弹匣固定 */
+export function incarnonPanel(w: WeaponPanel): WeaponPanel {
+  const i = w.incarnon;
+  if (!i) return w;
+  return {
+    ...w,
+    dmg: i.dmg,
+    total: i.total,
+    cc: i.cc,
+    cd: i.cd,
+    sc: i.sc,
+    fr: i.fr,
+    ms: i.beams ?? 1,
+    mag: i.mag ?? w.mag,
+    fixedMag: i.mag != null,
+    trigger: undefined,
+    charge: undefined,
+  };
 }
 
 export interface ModCard {
@@ -260,7 +300,7 @@ export function computeBuild(
   const ms = (w.ms ?? 1) * (1 + (sums.ms ?? 0));
   const frBase = w.fr > 0 ? w.fr : w.charge ? 1 / w.charge : 0;
   const fr = frBase * (1 + (sums.fr ?? 0));
-  const mag = Math.max(1, Math.round(w.mag * (1 + (sums.mag ?? 0))));
+  const mag = w.fixedMag ? Math.max(1, Math.round(w.mag)) : Math.max(1, Math.round(w.mag * (1 + (sums.mag ?? 0))));
   const rl = w.rl / (1 + (sums.rl ?? 0));
 
   const perShot = panelTotal * ms;

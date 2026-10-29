@@ -6,7 +6,7 @@ import combat from "../data/combat.json";
 import { makeUnits, marginalTable, suggestBuild } from "./build";
 import { ENEMIES } from "./data";
 import type { ModCard, WeaponPanel } from "./engine";
-import { computeBuild } from "./engine";
+import { computeBuild, incarnonPanel } from "./engine";
 
 const weapons = combat.weapons as unknown as WeaponPanel[];
 const allMods = combat.mods as unknown as ModCard[];
@@ -223,5 +223,49 @@ describe("galvanized mods (镀层) & trigger restrictions", () => {
     expect(off.cc).toBeCloseTo(w.cc, 6);
     const one = computeBuild(w, [scope], null, null, { [scope.id]: 1 });
     expect(one.cc).toBeCloseTo(w.cc * (1 + 1.2 + 0.4), 6);
+  });
+});
+
+describe("incarnon form (灵化形态)", () => {
+  it("ships per-beam panels with wiki-verified beams and fixed magazine", () => {
+    const boar = weapon("Boar Prime");
+    expect(boar.incarnon?.dmg).toEqual({ heat: 30 });
+    expect(boar.incarnon?.total).toBe(30);
+    expect(boar.incarnon?.beams).toBe(3);
+    expect(boar.incarnon?.mag).toBe(150);
+    // 69 Incarnon Genesis guns made it into combat.json
+    expect(weapons.filter((w) => w.incarnon).length).toBeGreaterThanOrEqual(69);
+  });
+
+  it("swaps the panel: per-beam damage x beams, magazine mods do not apply", () => {
+    const boar = weapon("Boar Prime");
+    const p = incarnonPanel(boar);
+    expect(p.ms).toBe(3);
+    expect(p.mag).toBe(150);
+    expect(p.fixedMag).toBe(true);
+    expect(p.trigger).toBeUndefined();
+    const mag = byName("Ammo Stock");
+    const r = computeBuild(p, [mag]);
+    expect(r.mag).toBe(150); // 形态弹匣固定
+    expect(r.perShot).toBeCloseTo(30 * 3, 6); // 单发 = 每光束30 × 3条光束
+    expect(r.fr).toBeCloseTo(8, 6);
+    expect(computeBuild(boar, [mag]).mag).toBe(32); // 基础形态弹匣照吃MOD：20×1.6
+  });
+
+  it("keeps the pure-heat form pure: heat mods amplify, no phantom types", () => {
+    const p = incarnonPanel(weapon("Boar Prime"));
+    const r = computeBuild(p, [byName("Incendiary Coat")]); // +90% heat
+    expect(Object.keys(r.dmg)).toEqual(["heat"]);
+    expect(r.dmg.heat).toBeCloseTo(30 * 1.9, 6);
+  });
+});
+
+describe("weapon family (同族版本)", () => {
+  it("keeps base and variant panels apart (丧钟 vs 丧钟 Prime)", () => {
+    const knell = weapon("Knell");
+    const prime = weapon("Knell Prime");
+    expect(knell.total).toBe(150);
+    expect(prime.total).toBe(180);
+    expect(prime.cc).toBeGreaterThan(knell.cc);
   });
 });

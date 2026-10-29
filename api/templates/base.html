@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}管理后台 · riven-roll{% endblock %}</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+           background: #14121c; color: #e8e4f2; }
+    a { color: #9db7ff; text-decoration: none; }
+    header { display: flex; align-items: center; gap: 18px; padding: 12px 22px;
+             background: #1c1928; border-bottom: 1px solid #322c46; }
+    header .brand { font-weight: 700; letter-spacing: .06em; color: #e8e4f2; }
+    header .who { margin-left: auto; color: #8f89a6; font-size: 13px; }
+    main { max-width: 1100px; margin: 26px auto; padding: 0 22px; }
+    h1 { font-size: 19px; margin: 0 0 18px; }
+    h2 { font-size: 15px; margin: 26px 0 10px; color: #b8b2cc; }
+    .cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+    .card { background: #1c1928; border: 1px solid #322c46; border-radius: 8px; padding: 14px 20px; min-width: 150px; }
+    .card b { display: block; font-size: 24px; }
+    .card span { color: #8f89a6; font-size: 12px; }
+    table { border-collapse: collapse; width: 100%; background: #1c1928; border: 1px solid #322c46; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #2a2440; white-space: nowrap; }
+    th { color: #8f89a6; font-weight: 600; font-size: 12.5px; background: #201c2e; }
+    tr:last-child td { border-bottom: none; }
+    .flash { background: #243020; border: 1px solid #3d5c3d; color: #b8e6b8;
+             padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; word-break: break-all; }
+    form.inline { display: inline-flex; gap: 6px; align-items: center; }
+    button, select { font: inherit; background: #2a2440; color: #e8e4f2; border: 1px solid #463e63;
+                     border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+    button:hover { background: #352d50; }
+    button.warn { border-color: #6b3a3a; color: #f2b8b8; }
+    input[type=search], input[type=text] { font: inherit; background: #14121c; color: #e8e4f2;
+                     border: 1px solid #463e63; border-radius: 6px; padding: 5px 10px; }
+    .muted { color: #8f89a6; font-size: 12px; }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; border: 1px solid #463e63; }
+    .tag.pro { color: #ffd98a; border-color: #6b5a2a; }
+    .tag.banned { color: #f2a0a0; border-color: #6b3a3a; }
+    .deny { text-align: center; margin-top: 12vh; color: #b8b2cc; }
+    .deny b { font-size: 44px; display: block; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/admin/">管理后台</a>
+    <a href="/admin/">仪表盘</a>
+    <a href="/admin/users">用户</a>
+    <a href="/" class="muted">← 返回站点</a>
+    <span class="who">{{ u.email if u else "未登录" }}</span>
+  </header>
+  <main>
+    {% with msgs = get_flashed_messages() %}
+      {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    {% block body %}{% endblock %}
+  </main>
+</body>
+</html>

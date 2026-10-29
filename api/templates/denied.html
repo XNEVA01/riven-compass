@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="deny">
+  <b>{{ code }}</b>
+  {% if code == 401 %}
+    请先在 <a href="/">站点首页</a> 登录管理员账号，再打开 /admin/。
+  {% else %}
+    此账号没有管理员权限。
+  {% endif %}
+</div>
+{% endblock %}

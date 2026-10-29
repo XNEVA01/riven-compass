@@ -1,0 +1,3207 @@
+/* void & gold — temple edition: a full rebuild on the same DOM. every panel a stele, every button gilded. */
+@import "@fontsource/noto-serif-sc/700.css";
+@import "@fontsource/noto-serif-sc/900.css";
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/500.css";
+@import "@fontsource/newsreader/600.css";
+
+/* tokens: day is ivory marble under a gilded lintel; night is the void with a gilded light on it */
+:root {
+  --paper: #f2ecdf;
+  --sheet: #faf6ec;
+  --well: #e9e0ca;
+  --ink: #221a30;
+  --ink-2: #4d4260;
+  --ink-3: #7a6f85;
+  --rule: #d6c9ac;
+  --seal: #8a5a0a;
+  --seal-soft: rgba(138, 90, 10, 0.08);
+  --seal-tint: rgba(138, 90, 10, 0.16);
+  --hi: #0a6b59;
+  --ink-hover: #3a2f47;
+  --overlay: rgba(242, 236, 223, 0.9);
+  --weapon-shadow: drop-shadow(0 2px 3px rgba(34, 26, 48, 0.25));
+  --icon-rim: none;
+  --raised: var(--sheet);
+  --raised-shadow: 0 1px 2px rgba(34, 26, 48, 0.15);
+  --switch-off: var(--rule);
+  --knob: var(--sheet);
+  --frame: rgba(138, 90, 10, 0.3);
+  --gold-grad: linear-gradient(180deg, #eccd7d, #bd8c2f);
+  --gold-grad-hi: linear-gradient(180deg, #f5dda0, #cc9a3a);
+  --paper-glow:
+    radial-gradient(1100px 460px at 50% -120px, rgba(190, 140, 40, 0.08), transparent 65%), radial-gradient(900px 540px at 108% -60px, rgba(120, 90, 200, 0.05), transparent 60%);
+  --vignette: radial-gradient(140% 130% at 50% 40%, transparent 58%, rgba(66, 46, 12, 0.08));
+  --serif: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --num: "Newsreader", "Noto Serif SC", serif;
+  --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --shadow: 0 14px 36px rgba(34, 26, 48, 0.18), 0 2px 6px rgba(34, 26, 48, 0.08);
+  color-scheme: light;
+}
+/* 繁中: Traditional glyphs and fonts; the faces load with the language (App.tsx), not for every visitor */
+:root:lang(zh-Hant) {
+  --serif: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --num: "Newsreader", "Noto Serif TC", serif;
+  --sans: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+}
+
+/* the void at night: gilded light over deep violet; follows the system unless the player picks one */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e0a17;
+    --sheet: #181128;
+    --well: #231a3e;
+    --ink: #eee4cf;
+    --ink-2: #c0b29c;
+    --ink-3: #8d8172;
+    --rule: #3b2c5e;
+    --seal: #e0b15c;
+    --seal-soft: rgba(224, 177, 92, 0.1);
+    --seal-tint: rgba(224, 177, 92, 0.18);
+    --hi: #7ce0c8;
+    --ink-hover: #f7ecc4;
+    --overlay: rgba(10, 7, 16, 0.92);
+    --weapon-shadow: drop-shadow(0 0 7px rgba(224, 177, 92, 0.22));
+    --icon-rim: drop-shadow(0 0 1px rgba(240, 210, 150, 0.75)) drop-shadow(0 0 2px rgba(224, 177, 92, 0.32));
+    --raised: #2e2344;
+    --raised-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(224, 177, 92, 0.08);
+    --switch-off: #2a1f3d;
+    --knob: #ece1c8;
+    --frame: rgba(224, 177, 92, 0.22);
+    --gold-grad: linear-gradient(180deg, #f3dc9a, #c9992e);
+    --gold-grad-hi: linear-gradient(180deg, #f9e7b6, #d9ab48);
+    --paper-glow:
+      radial-gradient(1100px 460px at 50% -120px, rgba(224, 177, 92, 0.07), transparent 65%), radial-gradient(900px 540px at 108% -60px, rgba(124, 80, 200, 0.1), transparent 60%),
+      radial-gradient(1500px 900px at 50% 115%, rgba(90, 60, 170, 0.05), transparent 60%);
+    --vignette: radial-gradient(140% 130% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.38));
+    --shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e0a17;
+  --sheet: #181128;
+  --well: #231a3e;
+  --ink: #eee4cf;
+  --ink-2: #c0b29c;
+  --ink-3: #8d8172;
+  --rule: #3b2c5e;
+  --seal: #e0b15c;
+  --seal-soft: rgba(224, 177, 92, 0.1);
+  --seal-tint: rgba(224, 177, 92, 0.18);
+  --hi: #7ce0c8;
+  --ink-hover: #f7ecc4;
+  --overlay: rgba(10, 7, 16, 0.92);
+  --weapon-shadow: drop-shadow(0 0 7px rgba(224, 177, 92, 0.22));
+  --icon-rim: drop-shadow(0 0 1px rgba(240, 210, 150, 0.75)) drop-shadow(0 0 2px rgba(224, 177, 92, 0.32));
+  --raised: #2e2344;
+  --raised-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(224, 177, 92, 0.08);
+  --switch-off: #2a1f3d;
+  --knob: #ece1c8;
+  --frame: rgba(224, 177, 92, 0.22);
+  --gold-grad: linear-gradient(180deg, #f3dc9a, #c9992e);
+  --gold-grad-hi: linear-gradient(180deg, #f9e7b6, #d9ab48);
+  --paper-glow:
+    radial-gradient(1100px 460px at 50% -120px, rgba(224, 177, 92, 0.07), transparent 65%), radial-gradient(900px 540px at 108% -60px, rgba(124, 80, 200, 0.1), transparent 60%),
+    radial-gradient(1500px 900px at 50% 115%, rgba(90, 60, 170, 0.05), transparent 60%);
+  --vignette: radial-gradient(140% 130% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.38));
+  --shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+/* chamfered corners, the orokin cut: two opposite corners only, so the shape reads as a cut gem */
+/* the border trick: an outer layer in the line's colour, an inner layer in the fill, one pixel apart */
+
+* {
+  box-sizing: border-box;
+}
+html {
+  scrollbar-color: var(--rule) transparent;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  background: var(--paper);
+  background-image: var(--paper-glow);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--ink);
+  font: 15px / 1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+/* the breath of the void at the page's edges; content sits above it */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--vignette);
+}
+/* the shrine frame: a gilded hairline around the whole viewport */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 8px;
+  z-index: 60;
+  pointer-events: none;
+  border: 1px solid var(--frame);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--seal) 55%, transparent);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+}
+:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+}
+a {
+  color: inherit;
+}
+::selection {
+  background: var(--seal-tint);
+}
+.muted {
+  color: var(--ink-3);
+}
+.small {
+  font-size: 12.5px;
+}
+.ico {
+  display: inline-block;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: -3px;
+}
+.stat-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.stat-name .sep {
+  margin-left: 1px;
+  color: var(--ink-3);
+}
+.stat-name .sep.wide {
+  margin-left: 5px;
+}
+.with-ico {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.num,
+.fig {
+  font-family: var(--num);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* ---------- shell ---------- */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 36px 72px;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.top {
+  animation: rise 0.5s ease-out both;
+}
+.coach,
+.article,
+.ranges {
+  animation: rise 0.55s 0.07s ease-out both;
+}
+.site-foot {
+  animation: rise 0.55s 0.14s ease-out both;
+}
+/* contact line at the bottom of every page, under a gilded hairline */
+.site-foot {
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  text-align: center;
+}
+.site-foot a {
+  color: var(--seal);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--seal) 45%, transparent);
+}
+.site-foot a:hover {
+  color: var(--ink);
+  border-bottom-color: var(--seal);
+}
+.site-foot .mail-ico {
+  margin-right: 6px;
+  vertical-align: -3px;
+}
+/* footer meta lines below the contact one: game version, data credits, unofficial notice */
+.site-foot .foot-meta {
+  margin: 6px 0 0;
+  line-height: 1.7;
+}
+/* the lintel: a full-bleed monument band over the page, gold light along its top */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 76px;
+  margin: 0 -36px;
+  padding: 20px 36px 18px;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sheet) 55%, transparent), transparent 85%);
+  flex-wrap: wrap;
+}
+.top::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 4%, var(--seal) 32%, var(--seal) 68%, transparent 96%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 900 26px / 1.2 var(--serif);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+.kuva-ico,
+.splicer-ico {
+  filter: var(--icon-rim);
+}
+.mixed-bars {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.theme-btn {
+  margin-left: -16px;
+}
+
+/* ---------- language menu: a native select, drawn as a menu where CSS may draw it ---------- */
+.lang {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-2);
+}
+.lang > .translate-ico {
+  position: absolute;
+  left: 10px;
+  z-index: 1;
+  pointer-events: none;
+}
+.lang select {
+  min-height: 36px;
+  padding: 0 8px 0 34px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+.lang:hover select {
+  border-color: var(--seal);
+}
+.lang:hover > .translate-ico {
+  color: var(--seal);
+}
+@supports (appearance: base-select) {
+  .lang select,
+  .lang ::picker(select) {
+    appearance: base-select;
+  }
+  .lang select {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px 0 34px;
+  }
+  .lang select::picker-icon {
+    color: var(--ink-3);
+    transition: rotate 0.2s;
+  }
+  .lang select:open::picker-icon {
+    rotate: 180deg;
+  }
+  .lang select:open {
+    border-color: var(--seal);
+  }
+  .lang select > button {
+    all: unset;
+  }
+  /* the button mirrors the chosen option: its name only */
+  .lang select > button .lang-sep,
+  .lang select > button .lang-eg {
+    display: none;
+  }
+  .lang ::picker(select) {
+    width: max-content;
+    min-width: max(anchor-size(width), 184px);
+    margin-block: 6px;
+    padding: 6px;
+    border: 1px solid var(--seal);
+    border-radius: 0;
+    background: var(--sheet);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+    /* the menu's right edge under the button's: the button sits at the right of the header */
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block, flip-inline;
+    opacity: 0;
+    translate: 0 -4px;
+    transition:
+      opacity 0.14s,
+      translate 0.14s,
+      overlay 0.14s allow-discrete,
+      display 0.14s allow-discrete;
+  }
+  .lang select:open::picker(select) {
+    opacity: 1;
+    translate: 0 0;
+  }
+  @starting-style {
+    .lang select:open::picker(select) {
+      opacity: 0;
+      translate: 0 -4px;
+    }
+  }
+  /* each language in itself, with what its client calls a riven under it; a check on the one in use */
+  .lang option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 16px;
+    align-items: center;
+    min-height: 48px;
+    padding: 6px 10px 6px 12px;
+    border-radius: 0;
+    cursor: pointer;
+  }
+  .lang option:hover,
+  .lang option:focus-visible {
+    background: var(--well);
+    outline: none;
+  }
+  .lang option::checkmark {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    color: var(--seal);
+  }
+  .lang option:checked .lang-name {
+    font-weight: 600;
+  }
+  .lang-name {
+    grid-column: 1;
+    font-size: 14.5px;
+    line-height: 1.3;
+  }
+  .lang-sep {
+    display: none;
+  }
+  .lang-eg {
+    grid-column: 1;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink-3);
+  }
+  /* phones: 文A and the arrow keep the title on one line; the page is in the language it would name */
+  @media (max-width: 720px) {
+    .lang select {
+      gap: 0;
+      padding-right: 8px;
+    }
+    .lang select > button {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+  }
+}
+/* navigation: engraved letters, the page in use gilded from below */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-right: auto;
+}
+.tabs a {
+  position: relative;
+  text-decoration: none;
+  padding: 10px 16px;
+  color: var(--ink-3);
+  font-size: 14.5px;
+  letter-spacing: 0.16em;
+}
+.tabs a:hover {
+  color: var(--ink);
+  background: var(--seal-soft);
+}
+.tabs a[aria-current="page"] {
+  color: var(--seal);
+  font-weight: 600;
+}
+.tabs a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 4px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--seal), transparent);
+}
+
+.coach {
+  display: grid;
+  grid-template-columns: 450px minmax(0, 1fr);
+  gap: 30px;
+  margin-top: 30px;
+  align-items: start;
+}
+.col-left,
+.col-right {
+  display: grid;
+  /* 显式轨道而不是隐式 auto：auto 轨道的最小值会跟随内容 min-content（如快捷填入的输入框），窄屏被顶出面板外 */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  min-width: 0;
+}
+
+/* ---------- panels: gilded steles ---------- */
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--seal) 3%, var(--sheet)), var(--sheet) 90px), var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 18px 22px 22px;
+}
+/* the lintel: gold light laid across the stele's crown */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 1%, var(--seal) 28%, var(--seal) 72%, transparent 99%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+/* the stele's foot, one cut corner bracket in gold */
+.panel::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 15px;
+  height: 15px;
+  border-right: 1px solid var(--seal);
+  border-bottom: 1px solid var(--seal);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.panel-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  margin-bottom: 8px;
+}
+/* each panel title opens with a small gold lozenge */
+.panel-h h2 {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 auto 0 0;
+  font: 700 18px var(--serif);
+  letter-spacing: 0.08em;
+}
+.panel-h h2::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 10px;
+  background: var(--seal);
+  transform: rotate(45deg);
+  flex: none;
+}
+.panel-tools,
+.text-tools {
+  display: inline-flex;
+  gap: 4px;
+}
+.empty {
+  margin: 8px 0;
+  padding: 30px 0;
+  text-align: center;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+.empty.good {
+  color: var(--hi);
+  font-weight: 600;
+}
+.empty.warn {
+  color: var(--seal);
+}
+
+/* ---------- buttons: chamfered and gilded ---------- */
+.btn {
+  position: relative;
+  z-index: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  transition:
+    background 0.12s,
+    transform 0.06s;
+}
+.btn::before,
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  pointer-events: none;
+}
+.btn::before {
+  background: var(--ink);
+}
+.btn::after {
+  inset: 1px;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  background: var(--sheet);
+  transition: background 0.12s;
+}
+.btn:hover::after {
+  background: var(--well);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn.primary::before {
+  background: var(--gold-grad-hi);
+}
+.btn.primary::after {
+  background: var(--gold-grad);
+}
+.btn.primary {
+  color: #2b1d08;
+  font-weight: 600;
+}
+.btn.primary:hover::after {
+  background: var(--gold-grad-hi);
+}
+.btn.big {
+  min-height: 48px;
+  font-size: 15px;
+  flex: 1 1 0;
+}
+.btn.block {
+  width: 100%;
+  margin-top: 12px;
+}
+.text-btn {
+  border: 0;
+  background: none;
+  padding: 6px 8px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+.text-btn:hover,
+.text-btn.on {
+  color: var(--seal);
+  background: var(--seal-soft);
+}
+/* 分享按钮：这是要一眼被找到的动作，给边框和链接图标，不用 text-btn 的低调样式 */
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--seal);
+  padding: 5px 11px;
+  color: var(--seal);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.share-btn:hover {
+  background: var(--seal);
+  color: var(--paper);
+}
+/* Mod 库搜索框 */
+.pool-search {
+  width: 160px;
+  padding: 5px 9px;
+  border: 1px solid var(--seal-soft);
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  font-family: inherit;
+}
+.pool-search:focus {
+  outline: none;
+  border-color: var(--seal);
+}
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+  display: inline-grid;
+  place-items: center;
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--seal-soft);
+  border-color: var(--seal);
+  color: var(--seal);
+}
+.icon-btn.ghost {
+  border: 1px dashed var(--ink-3);
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+}
+.add-row {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  border: 1px dashed var(--ink-3);
+  border-radius: 0;
+  background: none;
+  color: var(--ink-2);
+}
+.add-row:hover:not(:disabled) {
+  border-color: var(--seal);
+  color: var(--seal);
+  background: var(--seal-soft);
+}
+.add-row:disabled {
+  display: none;
+}
+/* the seal of the app's own: a gold stamp, square cut like a carved chop */
+.seal {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  margin-right: 8px;
+  border: 2px solid var(--seal);
+  border-radius: 0;
+  color: var(--seal);
+  font: 900 13px / 1 var(--serif);
+  transform: rotate(-6deg);
+  vertical-align: 1px;
+}
+
+/* ---------- segmented, chips, switch, slider ---------- */
+.seg {
+  border: 1px solid var(--rule);
+  margin: 0;
+  min-inline-size: 0;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 0;
+  background: var(--well);
+  flex-wrap: wrap;
+}
+.seg button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+.seg button:hover {
+  color: var(--ink);
+}
+.seg button.on {
+  background: var(--raised);
+  color: var(--seal);
+  font-weight: 600;
+  box-shadow:
+    var(--raised-shadow),
+    inset 0 -2px 0 var(--seal);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* chips: the same chamfer as the buttons, a notch smaller */
+.chip {
+  position: relative;
+  z-index: 0;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+.chip::before,
+.chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  pointer-events: none;
+}
+.chip::before {
+  background: var(--rule);
+}
+.chip::after {
+  inset: 1px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  background: var(--paper);
+  transition: background 0.12s;
+}
+.chip:hover::before {
+  background: var(--seal);
+}
+.chip.on::before {
+  background: var(--gold-grad-hi);
+}
+.chip.on::after {
+  background: var(--gold-grad);
+}
+.chip.on {
+  color: #2b1d08;
+  font-weight: 600;
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 32px;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.switch .track {
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--switch-off);
+  position: relative;
+  transition: background 0.15s;
+  flex: none;
+}
+.switch .track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+.switch input:checked + .track {
+  background: var(--seal);
+}
+.switch input:checked + .track::after {
+  transform: translateX(14px);
+}
+.switch input:focus-visible + .track {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+}
+.slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.slider-label {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.slider input[type="range"] {
+  width: 120px;
+  accent-color: var(--seal);
+}
+
+/* ---------- inputs: cut into the stele, gold when lit ---------- */
+input.num,
+.weapon input,
+.picker-search {
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--well) 45%, transparent);
+  padding: 6px 8px;
+  min-width: 0;
+}
+input.num {
+  font-size: 16px;
+}
+input.num:hover,
+.weapon input:hover,
+.picker-search:hover {
+  border-color: var(--ink-3);
+}
+input.num:focus,
+.weapon input:focus,
+.picker-search:focus {
+  outline: none;
+  border-color: var(--seal);
+  box-shadow: 0 0 0 3px var(--seal-soft);
+}
+input.num::placeholder {
+  color: var(--rule);
+}
+.field-label {
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  min-width: 76px;
+}
+
+/* ---------- popover: a plaque that hangs under its anchor, gold-edged ---------- */
+.pop {
+  position: relative;
+  min-width: 0;
+}
+.pop-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 280px);
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  padding: 12px;
+  background: var(--sheet);
+  border: 1px solid var(--seal);
+  border-radius: 0;
+  box-shadow: var(--shadow);
+}
+.pop-panel.wide {
+  width: min(560px, 86vw);
+}
+.picker-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  min-width: 0;
+}
+.picker-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 4px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  text-align: left;
+  font-size: 15px;
+}
+.picker-btn:hover {
+  border-bottom-color: var(--seal);
+}
+.picker-btn[aria-expanded="true"] {
+  border-bottom: 2px solid var(--seal);
+}
+.picker-btn.empty {
+  color: var(--ink-3);
+}
+.picker-btn .caret {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.picker-search {
+  width: 100%;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+.picker-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.picker-group h4 {
+  margin: 14px 0 6px;
+  font: 600 11.5px var(--sans);
+  letter-spacing: 0.12em;
+  color: var(--seal);
+}
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+.opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--paper);
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.opt:hover:not(:disabled) {
+  border-color: var(--seal);
+}
+.opt.on {
+  border-color: var(--seal);
+  background: var(--seal-soft);
+  box-shadow: inset 0 0 0 1px var(--seal);
+}
+.opt small {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.opt:disabled {
+  opacity: 0.38;
+}
+
+/* ---------- riven card ---------- */
+.drop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 96px;
+  margin-bottom: 14px;
+  padding: 12px 18px;
+  border: 1.5px dashed var(--ink-3);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--well) 30%, transparent);
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.drop:hover {
+  border-color: var(--seal);
+  background: var(--seal-soft);
+}
+.drop b {
+  display: block;
+  font: 700 17px var(--serif);
+}
+.drop small {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+.riven-mark {
+  flex: none;
+  object-fit: contain;
+}
+/* the screenshot takes its own shape on the page: no frame around it, the status below it */
+.shot {
+  margin: 0 0 14px;
+}
+.shot-img {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+.shot-full {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  margin: 0 auto;
+  border-radius: 0;
+  box-shadow: var(--shadow);
+}
+.shot-crop {
+  position: relative;
+  display: block;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 0;
+  box-shadow: var(--shadow);
+}
+.shot-crop img {
+  position: absolute;
+  max-width: none;
+}
+.shot figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 2px 0;
+}
+.shot-status {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.shot-status.warn {
+  padding: 3px 10px;
+  color: var(--seal);
+  background: var(--seal-soft);
+}
+.shot-again {
+  padding: 4px 12px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+}
+.shot-status.busy::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  background: var(--seal);
+  animation: pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes pulse {
+  to {
+    opacity: 0.25;
+  }
+}
+.shot-again {
+  margin-left: auto;
+  min-height: 32px;
+}
+.shot-again:hover {
+  border-color: var(--seal);
+  color: var(--seal);
+}
+dialog.lightbox {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: 96vw;
+  max-height: 94vh;
+  cursor: zoom-out;
+}
+dialog.lightbox::backdrop {
+  background: rgba(8, 5, 14, 0.88);
+}
+dialog.lightbox img {
+  display: block;
+  max-width: 96vw;
+  max-height: 94vh;
+  border-radius: 0;
+}
+.weapon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.weapon-img {
+  flex: none;
+  width: 132px;
+  height: 88px;
+  object-fit: contain;
+  filter: var(--weapon-shadow);
+}
+.weapon-img.empty {
+  border: 1px dashed var(--rule);
+  border-radius: 0;
+  filter: none;
+}
+.weapon-img.small {
+  width: 54px;
+  height: 36px;
+}
+.weapon-field {
+  flex: 1;
+  min-width: 0;
+}
+.weapon input {
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+}
+.weapon input.has-value::placeholder {
+  color: var(--ink);
+  font: 700 19px var(--serif);
+  letter-spacing: 0.04em;
+}
+.weapon-cls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 2px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.disp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.disp .num {
+  /* room for four decimals (1.2345): the box shows every digit that is computed with */
+  width: 4.6em;
+  min-height: 0;
+  padding: 0 4px;
+  font: inherit;
+  color: var(--ink-2);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.disp .num:hover {
+  border-color: var(--rule);
+}
+/* a disposition of the player's own (not the game's 1.2) stays visible */
+.disp.own,
+.disp.own .num {
+  color: var(--seal);
+}
+/* the roster: a plaque hung under the weapon line */
+.weapon-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 340px;
+  overflow: auto;
+  padding: 4px;
+  background: var(--sheet);
+  border: 1px solid var(--seal);
+  border-radius: 0;
+  box-shadow: var(--shadow);
+}
+.weapon-list [role="option"] {
+  display: flex;
+  gap: 10px;
+  min-height: 44px;
+  align-items: center;
+  padding: 2px 10px 2px 4px;
+  border-radius: 0;
+  cursor: pointer;
+}
+.weapon-list [role="option"] small {
+  margin-left: auto;
+}
+.weapon-list [role="option"][aria-selected="true"],
+.weapon-list [role="option"]:hover {
+  background: var(--seal-soft);
+}
+.weapon-list small {
+  color: var(--ink-3);
+}
+.traits {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+/* the ledger: each trait a line in the stele's books */
+.trait {
+  display: grid;
+  grid-template-columns: 16px 96px minmax(0, 1fr) 50px 32px;
+  grid-template-rows: auto 6px auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.trait .sign {
+  font: 600 18px var(--num);
+  color: var(--ink-3);
+  text-align: center;
+}
+.trait.neg .sign,
+.trait.neg .trait-val {
+  color: var(--seal);
+}
+.trait-val {
+  width: 100%;
+}
+.trait .picker-btn {
+  border-bottom-color: transparent;
+}
+.trait .picker-btn:hover {
+  border-bottom-color: var(--seal);
+}
+.trait-w {
+  font: 15px var(--num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink-2);
+  position: relative;
+}
+.trait-w.hi {
+  color: var(--hi);
+  font-weight: 600;
+}
+.trait-w.lo {
+  color: var(--ink-3);
+}
+.warn-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--seal);
+  margin-left: 4px;
+  vertical-align: 2px;
+}
+.trait-bar {
+  grid-column: 2 / 5;
+  grid-row: 2;
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--well);
+}
+.trait-bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--seal) 60%, transparent);
+}
+.trait-bar i.hi {
+  background: var(--hi);
+}
+.trait-bar b {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 9px;
+  background: var(--seal);
+  transform: translateX(-1px);
+}
+/* what the game can show for the stat in this layout, lowest roll to highest */
+.trait-range {
+  grid-column: 2 / 5;
+  grid-row: 3;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.trait-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.layout-tag {
+  margin-left: auto;
+  font: 600 15px var(--num);
+  color: var(--ink-2);
+}
+.card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.card-foot label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.card-foot input.num {
+  color: var(--ink);
+}
+
+/* ---------- target ---------- */
+/* the recess: the target's workings cut into the stele */
+.more {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--well) 55%, transparent);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.more-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 14px;
+}
+.quick {
+  margin-bottom: 8px;
+}
+.quick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* 输入框有浏览器给的内在宽度（min-width:0 压不住它），窄屏允许换行，免得整行 min-content 顶破面板 */
+@media (max-width: 480px) {
+  .quick-row {
+    flex-wrap: wrap;
+  }
+}
+.quick-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--paper);
+  font-size: 15px;
+}
+.quick-input:hover {
+  border-color: var(--ink-3);
+}
+.quick-input:focus {
+  outline: none;
+  border-color: var(--seal);
+  box-shadow: 0 0 0 3px var(--seal-soft);
+}
+.quick-row .btn:disabled {
+  opacity: 0.4;
+}
+.quick-read {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+.quick-set {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.quick-set + .quick-set::before {
+  content: "|";
+  color: var(--rule);
+}
+/* tags: the ledger's notes, chamfered like everything gold */
+.tag {
+  position: relative;
+  z-index: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+  padding: 3px 9px;
+  background: transparent;
+}
+.tag::before,
+.tag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  pointer-events: none;
+}
+.tag::before {
+  background: var(--rule);
+}
+.tag::after {
+  inset: 1px;
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+  background: color-mix(in srgb, var(--well) 65%, var(--sheet));
+}
+.tag.muted {
+  color: var(--ink-3);
+}
+.tag.muted::before {
+  opacity: 0.45;
+}
+.tag.muted::after {
+  background: transparent;
+}
+.tag.bad::before {
+  background: var(--seal);
+}
+.tag.bad::after {
+  background: var(--seal-soft);
+}
+.tag.soft::before {
+  opacity: 0.5;
+}
+.tag.soft::after {
+  background: transparent;
+}
+.tag.soft {
+  color: var(--ink-3);
+}
+.quick-help {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 13.5px;
+}
+.quick-help li {
+  display: grid;
+  gap: 2px;
+}
+.quick-help code {
+  font: 600 14px var(--sans);
+  color: var(--ink);
+}
+.quick-help span {
+  color: var(--ink-3);
+}
+.target-set.multi {
+  padding: 4px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--seal) 40%, var(--rule));
+  border-radius: 0;
+  background: color-mix(in srgb, var(--well) 35%, transparent);
+}
+.or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px -12px 10px;
+  font: 700 14px var(--serif);
+  color: var(--seal);
+}
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed color-mix(in srgb, var(--seal) 45%, transparent);
+}
+.set-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+}
+/* the set's number: a coin in a gold ring */
+.set-name {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--seal);
+  background: transparent;
+  color: var(--seal);
+  font: 700 13px var(--num);
+}
+.add-alt {
+  display: block;
+  margin: 10px 0 0 auto;
+  color: var(--seal);
+}
+.slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.slot {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 32px;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 8px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.slot-n {
+  font: 600 17px var(--num);
+  color: var(--seal);
+  text-align: center;
+}
+.slot-bar {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+/* what the game can show for the row's stats, on a line of its own */
+.slot-range {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.bar-field {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.bar-field input.num {
+  color: var(--ink);
+}
+.bar-field.out input.num {
+  color: var(--seal);
+}
+.opts {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.opt-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+/* ---------- routes: the gilded ledger ---------- */
+.routes-panel {
+  transition: opacity 0.2s;
+}
+.routes-panel.stale .routes {
+  opacity: 0.5;
+}
+.routes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.route {
+  position: relative;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.route:last-child {
+  border-bottom: 0;
+}
+/* the recommended route: gold poured along its left edge */
+.route.rec::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--seal) 20%, var(--seal) 80%, transparent);
+}
+.route-head {
+  display: grid;
+  /* the number columns grow with their text (English units are longer) */
+  grid-template-columns: 36px minmax(0, 1fr) minmax(110px, auto) minmax(150px, auto);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 4px 6px 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+.route-head:hover .route-title {
+  color: var(--seal);
+}
+.route-no {
+  font: 600 20px var(--num);
+  color: var(--ink-3);
+}
+.route.rec .route-no {
+  color: var(--seal);
+}
+.route-title {
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition: color 0.12s;
+}
+.route-title .ico {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  vertical-align: -4px;
+}
+.route-num {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+}
+.route-num b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 19px / 1.2 var(--num);
+  font-variant-numeric: tabular-nums;
+}
+.route-num.total b {
+  font-size: 22px;
+}
+.route-num.total .ico {
+  width: 20px;
+  height: 20px;
+}
+.route-num small {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.route-body {
+  display: grid;
+  gap: 8px;
+  padding: 0 4px 14px 52px;
+}
+.range {
+  position: relative;
+  height: 12px;
+}
+.range i {
+  position: absolute;
+  top: 5px;
+  height: 2px;
+  background: var(--ink-3);
+  opacity: 0.6;
+}
+.range em {
+  position: absolute;
+  top: 1px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--well);
+  border: 1px solid var(--ink-3);
+}
+.route.rec .range em {
+  background: var(--seal-tint);
+  border-color: var(--seal);
+}
+.range b {
+  position: absolute;
+  top: -1px;
+  width: 2px;
+  height: 14px;
+  background: var(--ink);
+  transform: translateX(-1px);
+}
+.keep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.keep-label {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-right: 2px;
+}
+.tag .tag-n {
+  margin-right: 4px;
+  color: var(--ink-3);
+}
+.tag .tag-q {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid var(--rule);
+  color: var(--ink-3);
+}
+.tag .plus {
+  margin: 0 5px;
+  color: var(--ink-3);
+}
+.tag .ico {
+  width: 16px;
+  height: 16px;
+}
+.route-foot {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.route-foot:empty {
+  display: none;
+}
+/* the count rule, shown while its settings are folded */
+.rule-note {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--seal);
+  text-align: left;
+}
+/* the route the page has open: a gilded leaf laid over the ledger */
+.route.open {
+  background: linear-gradient(90deg, var(--seal-soft), color-mix(in srgb, var(--seal-soft) 30%, transparent) 60%);
+}
+.route-steps {
+  margin: 0 8px 14px 52px;
+  padding: 14px 16px;
+  background: var(--sheet);
+  border: 1px solid color-mix(in srgb, var(--seal) 45%, var(--rule));
+  border-radius: 0;
+  box-shadow: var(--shadow);
+}
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: s;
+}
+.steps li {
+  counter-increment: s;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 6px 0;
+  font-size: 14.5px;
+}
+.steps li::before {
+  content: counter(s);
+  font: 600 16px var(--num);
+  color: var(--seal);
+}
+.loop {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+/* after a failed calculation: try again (and reload, when the calculator did not start) */
+.loop.retry {
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.tally {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--seal) 35%, var(--rule));
+}
+.tally dt {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.tally dd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font: 500 18px var(--num);
+  font-variant-numeric: tabular-nums;
+}
+.tally small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 4px 0 52px;
+  font: 11px var(--num);
+  color: var(--ink-3);
+}
+
+/* ---------- compare: two rivens side by side, the keeper gilded ---------- */
+.compare {
+  border-color: var(--seal);
+}
+.compare-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.compare-card {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--paper);
+  text-align: left;
+}
+.compare-card:hover {
+  border-color: var(--ink-3);
+}
+.compare-card.better {
+  border: 1px solid var(--seal);
+  box-shadow:
+    inset 0 0 0 1px var(--seal-soft),
+    0 0 0 1px color-mix(in srgb, var(--seal) 30%, transparent);
+  background: var(--seal-soft);
+}
+.compare-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.compare-h .muted {
+  margin-left: auto;
+  font-size: 13px;
+}
+.compare-line {
+  font-size: 13.5px;
+}
+.compare-line.neg {
+  color: var(--seal);
+}
+.compare-card .btn {
+  margin-top: 8px;
+  pointer-events: none;
+}
+
+/* ---------- ranges page: the codex ---------- */
+.ranges {
+  margin-top: 28px;
+}
+.ranges-h {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.ranges-h h2 {
+  margin: 0;
+  font: 700 20px var(--serif);
+  letter-spacing: 0.08em;
+}
+.ranges-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: 16px 0 12px;
+}
+.ranges-hint {
+  margin-left: auto;
+}
+.row-btn {
+  display: inline-flex;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  border-bottom: 1px dashed transparent;
+}
+.row-btn:hover,
+.row-btn[aria-expanded="true"] {
+  border-bottom-color: var(--seal);
+  color: var(--seal);
+}
+.row-value {
+  display: block;
+  margin-top: 4px;
+}
+.row-value input.num {
+  font-size: 15px;
+  color: var(--ink);
+}
+.range-table tr.checking {
+  background: var(--seal-soft);
+}
+.cell-range {
+  display: block;
+}
+.cell-roll {
+  display: block;
+  margin-top: 2px;
+  font: 600 13px var(--num);
+  color: var(--hi);
+}
+.cell-roll.bad {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.range-table th.mine {
+  color: var(--seal);
+}
+.range-table td.mine {
+  background: var(--seal-soft);
+}
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--sheet);
+}
+.range-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.range-table th,
+.range-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  white-space: nowrap;
+  text-align: left;
+}
+/* the codex's crown: gold letters over a gold hairline */
+.range-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--sheet);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--seal) 55%, var(--rule));
+}
+.range-table .r {
+  text-align: right;
+}
+.range-table .neg {
+  color: var(--seal);
+}
+.range-table tr.cat th {
+  padding-top: 18px;
+  font: 700 14px var(--serif);
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  background: var(--paper);
+}
+.range-table tbody tr:not(.cat):hover {
+  background: color-mix(in srgb, var(--well) 50%, transparent);
+}
+.range-table tr.off {
+  opacity: 0.4;
+}
+.range-table th[scope="row"] {
+  font-weight: 500;
+}
+.range-table th small {
+  display: block;
+  font-weight: 400;
+  font-size: 11.5px;
+  letter-spacing: normal;
+  color: var(--ink-3);
+}
+
+/* ---------- 手机端词条区间（<=720px 渲染）：7/8 列表格换单属性手风琴，展开即激活查值 ---------- */
+.range-mobile {
+  display: grid;
+}
+.range-mobile .rm-cat {
+  margin: 18px 0 2px;
+  font: 700 14px var(--serif);
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.range-mobile section:first-child .rm-cat {
+  margin-top: 0;
+}
+.rm-row summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 9px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.rm-row summary::-webkit-details-marker {
+  display: none;
+}
+.rm-row summary::after {
+  content: "▸";
+  order: 1;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-3);
+  transition: rotate 0.15s ease;
+}
+.rm-row[open] > summary::after {
+  rotate: 90deg;
+}
+/* 展开行的次行说明（拼词配方 / 别名），换行放名字下方 */
+.rm-row summary small {
+  order: 2;
+  flex-basis: 100%;
+  font: 400 11.5px var(--sans);
+  color: var(--ink-3);
+}
+/* 正在查值的手风琴行：与桌面 checking 行同一块浮金底 */
+.rm-row.checking {
+  background: var(--seal-soft);
+}
+/* 不可选行：一条褪色的死行，无箭头不可展开 */
+.rm-row.off summary {
+  opacity: 0.4;
+  cursor: default;
+}
+.rm-row.off summary::after {
+  content: none;
+}
+.rm-cells {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  padding: 8px 2px 10px 30px;
+}
+.rm-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rm-cell b {
+  flex: 0 0 auto;
+  font: 400 11px var(--num);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.rm-cell span.num {
+  min-width: 0;
+  font: 500 13px var(--num);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+/* 负词条一整格用印色（与桌面 .neg 列一致） */
+.rm-cell.neg b,
+.rm-cell.neg span.num {
+  color: var(--seal);
+}
+/* 「我的武器类别」高亮（与桌面 .mine 列一致） */
+.rm-cell.mine b {
+  font-weight: 600;
+  color: var(--seal);
+}
+.rm-check {
+  grid-column: 1 / -1;
+}
+.rm-check input.num {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+/* ---------- overlays ---------- */
+.drop-overlay {
+  position: fixed;
+  inset: 12px;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  border: 3px dashed var(--seal);
+  border-radius: 0;
+  background: var(--overlay);
+  font: 700 28px var(--serif);
+  letter-spacing: 0.1em;
+  color: var(--seal);
+  pointer-events: none;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 90;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border: 1px solid var(--seal);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  animation: toast 0.2s ease-out;
+}
+.toast.undo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.toast.undo .text-btn {
+  color: var(--seal);
+  font-weight: 600;
+  text-decoration: underline;
+}
+.toast.undo .text-btn:hover {
+  background: none;
+  color: var(--ink-hover);
+}
+@keyframes toast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+/* ---------- guide ---------- */
+.article {
+  max-width: 760px;
+  margin: 28px auto 0;
+}
+.article h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 21px var(--serif);
+  letter-spacing: 0.06em;
+  margin: 36px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--seal) 45%, var(--rule));
+}
+.article h2 .ico {
+  width: 24px;
+  height: 24px;
+}
+.article p,
+.article li {
+  font-size: 15.5px;
+  line-height: 1.85;
+}
+.article table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 14px;
+}
+.article th,
+.article td {
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 18px 6px 0;
+  text-align: left;
+}
+.article th {
+  border-bottom-color: color-mix(in srgb, var(--seal) 55%, var(--rule));
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.article .recipe {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-weight: 600;
+}
+.article .stat-name + .stat-name {
+  margin-left: 6px;
+}
+.article .formula {
+  font: 18px var(--num);
+  text-align: center;
+  padding: 12px;
+  margin: 12px 0;
+  border-top: 1px solid color-mix(in srgb, var(--seal) 45%, var(--rule));
+  border-bottom: 1px solid color-mix(in srgb, var(--seal) 45%, var(--rule));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion has to beat every component rule */
+    transition: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion has to beat every component rule */
+    animation: none !important;
+  }
+}
+
+/* ---------- narrow ---------- */
+@media (max-width: 1180px) {
+  .coach {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .app {
+    padding: 0 12px 48px;
+  }
+  .top {
+    gap: 8px 12px;
+    margin: 0 -12px;
+    padding: 12px 12px 12px;
+  }
+  .brand {
+    font-size: 19px;
+    margin-right: auto;
+  }
+  .tabs {
+    order: 3;
+    flex: 0 0 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    margin: 0 -12px;
+    padding: 0 12px;
+  }
+  .tabs a {
+    flex: 0 0 auto;
+  }
+  .panel {
+    padding: 12px 14px 16px;
+  }
+  /* 窄屏的面板头放不下就换行（下一步的排序 + 分享、配卡的模式按钮），不横向溢出 */
+  .panel-h {
+    flex-wrap: wrap;
+  }
+  .route-head {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+  .route-head .route-num:not(.total) {
+    grid-column: 2;
+    grid-row: 2;
+    justify-items: start;
+    text-align: left;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .route-head .route-num.total {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+  .route-body,
+  .axis {
+    padding-left: 40px;
+  }
+  .route-steps {
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+  .loop {
+    flex-direction: column;
+  }
+  .compare-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .trait {
+    grid-template-columns: 14px 84px minmax(0, 1fr) 46px 28px;
+    column-gap: 6px;
+  }
+  .pop-panel,
+  .pop-panel.wide {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 75vh;
+    border-radius: 0;
+    border-bottom: 0;
+  }
+}
+
+/* ---------- 配卡 build page ---------- */
+.build-riven {
+  margin-top: 10px;
+}
+.build-traits {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.build-traits li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.build-traits li:last-child {
+  border-bottom: 0;
+}
+.build-traits li.neg {
+  color: var(--ink-3);
+}
+.build-traits b {
+  font: 600 14px / 1 var(--serif);
+  color: var(--seal);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.build-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.build-controls > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.build-controls input[type="number"] {
+  width: 76px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--well);
+  color: var(--ink);
+  font: 600 14px / 1 var(--serif);
+  font-variant-numeric: tabular-nums;
+}
+.build-controls input[type="number"]:focus {
+  outline: none;
+  border-color: var(--seal);
+}
+.build-slots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.build-slots li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.build-slots li:last-child {
+  border-bottom: 0;
+}
+.build-slots .slot-no {
+  min-width: 18px;
+  color: var(--seal);
+  font: 700 13px / 1 var(--serif);
+  font-variant-numeric: tabular-nums;
+}
+.build-slots .slot-name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 14px;
+}
+.build-slots .slot-stats {
+  margin-left: auto;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.build-slots .riven-slot {
+  box-shadow: inset 3px 0 0 var(--seal);
+  background: var(--seal-soft);
+  padding-left: 10px;
+}
+/* 伤害面板前的四档结论行（评测指令 13）：一块浮金底的判词，读完它再往下看细账 */
+.build-verdict {
+  margin: 0;
+  padding: 9px 12px;
+  border-left: 3px solid var(--seal);
+  background: var(--seal-soft);
+  font: 600 14px / 1.6 var(--serif);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.build-figs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px 14px;
+  margin: 0 0 14px;
+}
+.build-figs > div {
+  border-left: 2px solid var(--rule);
+  padding-left: 10px;
+}
+.build-figs dt {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.build-figs dd {
+  margin: 3px 0 0;
+  font: 600 16px / 1.2 var(--serif);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.build-panel,
+.build-marginal {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.build-panel li {
+  display: grid;
+  grid-template-columns: 52px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+.build-marginal li {
+  display: grid;
+  grid-template-columns: 112px 1fr 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.build-marginal li:last-child {
+  border-bottom: 0;
+}
+.build-panel .type,
+.build-marginal .name {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.build-panel .val,
+.build-marginal .val {
+  text-align: right;
+  font: 600 13px / 1 var(--serif);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.build-panel .bar,
+.build-marginal .bar {
+  height: 8px;
+  min-width: 2px;
+  background: var(--seal);
+  opacity: 0.85;
+}
+.build-vs {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--rule);
+}
+.build-vs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.build-vs b {
+  font: 600 14px / 1 var(--serif);
+  color: var(--seal);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* V2: three-tier comparison + riven stat marginals */
+.build-tiers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.build-tiers li {
+  display: grid;
+  grid-template-columns: 96px 1fr 176px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.build-tiers li:last-child {
+  border-bottom: 0;
+}
+.build-tiers .name {
+  grid-row: 1 / 3;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.build-tiers .bar {
+  grid-column: 2;
+  height: 10px;
+  min-width: 2px;
+  background: var(--seal);
+  opacity: 0.55;
+}
+.build-tiers .val {
+  grid-column: 3;
+  grid-row: 1;
+  text-align: right;
+  font: 600 13px / 1.2 var(--serif);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.build-tiers .note {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.build-tiers li.mine .bar,
+.build-tiers li.gold .bar {
+  background: var(--gold-grad-hi);
+  opacity: 1;
+}
+.build-tiers li.gold .name,
+.build-tiers li.gold .val {
+  color: var(--seal);
+}
+.build-god {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.build-god .god-label {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.build-god .chip {
+  border: 1px solid var(--rule);
+  padding: 3px 9px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.build-god .chip b {
+  font: 600 12px / 1 var(--serif);
+  color: var(--seal);
+  font-variant-numeric: tabular-nums;
+}
+.build-god .chip.neg,
+.build-god .chip.neg b {
+  opacity: 0.65;
+}
+/* slot edit buttons (manual mode) */
+.build-mode-btns {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.slot-ops {
+  display: inline-flex;
+  align-self: center;
+  gap: 0;
+  margin-left: 6px;
+}
+.slot-ops .text-btn {
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+/* the mod pool: every mod of this weapon's class, click to slot / unslot */
+.build-pool {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.build-pool li {
+  border-bottom: 1px solid var(--rule);
+}
+.build-pool li:last-child {
+  border-bottom: 0;
+}
+.build-pool button {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.build-pool button:hover {
+  background: var(--well);
+}
+.build-pool button.on {
+  box-shadow: inset 2px 0 0 var(--seal);
+}
+.build-pool button.on .slot-name {
+  color: var(--seal);
+}
+.build-pool button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.build-pool button:disabled:hover {
+  background: none;
+}
+/* the wanted riven row: the card the player is cycling toward */
+.build-tiers li.wish .bar {
+  background: var(--seal);
+  opacity: 0.85;
+}
+.build-tiers li.wish .name {
+  color: var(--seal);
+}
+.build-marginal .bar.hurt {
+  background: var(--ink-3);
+  opacity: 0.5;
+}
+
+/* 窄屏（≤480px）保底：配卡台的卡槽与 Mod 库换成两行堆叠、档位对比收紧列宽，只求不溢出可读 */
+@media (max-width: 480px) {
+  .build-slots li,
+  .build-pool button {
+    flex-wrap: wrap;
+  }
+  .build-slots .slot-stats,
+  .build-pool .slot-stats {
+    flex-basis: 100%;
+    margin-left: 34px;
+    margin-top: -2px;
+    text-align: left;
+  }
+  .build-tiers li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .build-tiers .val {
+    padding-left: 10px;
+  }
+  .build-marginal li {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+  .build-marginal .bar {
+    grid-column: 1 / 3;
+    grid-row: 2;
+  }
+  .build-marginal .val {
+    grid-row: 1;
+  }
+  /* 名字列放开换行：nowrap 时行尾的 <b> 数值会被 ellipsis 裁掉 */
+  .build-marginal .name {
+    white-space: normal;
+  }
+}
+
+/* ---------- market (P0-3 选品榜) ---------- */
+/* stele layout: a lintel of controls over a ledger of weapons, every row a struck line */
+.market {
+  display: grid;
+  gap: 16px;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 22px clamp(14px, 4vw, 30px) 44px;
+  width: 100%;
+}
+.market-head .panel-h h2 {
+  margin: 0;
+  font: 900 21px / 1.2 var(--serif);
+  color: var(--seal);
+}
+.market-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  margin-top: 12px;
+}
+.market-q {
+  flex: 1;
+  min-width: 150px;
+  max-width: 260px;
+  background: var(--well);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 8px 11px;
+  font: 400 13px / 1 var(--sans);
+}
+.market-q:focus {
+  outline: none;
+  border-color: var(--frame);
+}
+/* 骨架屏（P0-5）：首访无缓存时的一块稳定结构，替代孤零零的 loading 文案；扫光在 300% 宽的渐变上来回，两端都在窗外所以循环无缝 */
+.market-skeleton {
+  display: grid;
+  gap: 10px;
+  padding: 4px 0 6px;
+}
+.market-skeleton span {
+  height: 38px;
+  background: linear-gradient(90deg, var(--well) 40%, color-mix(in srgb, var(--ink) 8%, var(--well)) 50%, var(--well) 60%);
+  background-size: 300% 100%;
+  animation: skeleton-sweep 1.5s linear infinite;
+}
+@keyframes skeleton-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+.market-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.market-list li {
+  border-top: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+}
+.market-list li:first-child {
+  border-top: none;
+}
+.market-list li.open {
+  background: var(--seal-soft);
+}
+/* the columns' names, one thin engraved line over the list: same track template as the rows */
+.market-head-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 72px 76px 96px;
+  gap: 10px;
+  padding: 0 10px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.market-head-row .whdr {
+  text-align: right;
+  white-space: nowrap;
+}
+.market-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 72px 76px 96px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 10px;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: 400 14px / 1.3 var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+.market-row:hover {
+  background: var(--seal-soft);
+}
+.market-row .rank {
+  font: 500 13px / 1 var(--num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.market-row .wname {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.market-row .wcls,
+.market-row .wlistings,
+.market-row .wturnover,
+.market-row .wprofit,
+.market-row .wprice {
+  text-align: right;
+  font: 500 13px / 1 var(--num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.market-row .wprofit.up {
+  color: var(--hi);
+}
+.market-row .wprofit.down {
+  color: var(--seal);
+  opacity: 0.85;
+}
+.market-row .wprice {
+  font-weight: 600;
+  color: var(--seal);
+}
+/* 行内小标签（列名的替身）：桌面有表头列名，只在 <=720px 卡片视图里显示 */
+.market-row .cl {
+  display: none;
+}
+.market-detail {
+  padding: 4px 12px 14px 50px;
+}
+.market-combos {
+  list-style: none;
+  margin: 8px 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.market-combos li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  border-top: none;
+}
+/* 展开详情里期望利润最优的组合：词条描边高亮（V3d 跨武器利润榜） */
+.market-combos li.best .chip {
+  border-color: var(--hi);
+}
+.combo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.combo-chips .chip {
+  border: 1px solid var(--rule);
+  padding: 3px 9px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.combo-chips .chip.neg {
+  opacity: 0.65;
+}
+.combo-meta {
+  font: 500 12px / 1 var(--num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.text-btn.gold {
+  color: var(--seal);
+  font-weight: 600;
+}
+
+/* ---------- 洗 vs 买 panel（V3a）：主页路线旁的行情对照 ---------- */
+.profit-cost {
+  margin: 12px 0 2px;
+  font: 500 13px / 1.6 var(--sans);
+  color: var(--ink);
+}
+.profit-cost b {
+  font: 600 16px / 1 var(--num);
+  font-variant-numeric: tabular-nums;
+  color: var(--seal);
+}
+.profit-cost small {
+  font: 400 12px / 1.5 var(--num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.profit .market-combos li {
+  align-items: center;
+}
+.profit .market-combos {
+  margin: 8px 0 2px;
+}
+.profit-num {
+  margin-left: auto;
+  font: 600 14px / 1 var(--num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.profit-num.up {
+  color: var(--hi);
+}
+.profit-num.down {
+  color: var(--seal);
+  opacity: 0.85;
+}
+.profit-num.pending {
+  color: var(--ink-3);
+  opacity: 0.6;
+}
+.profit-num.muted {
+  color: var(--ink-3);
+}
+/* 行情页组合行：利润数字与「填入目标」都靠右，数字在前按钮在后 */
+.market-combos .profit-num {
+  margin-left: auto;
+  order: 1;
+}
+.market-combos .text-btn.gold {
+  order: 2;
+}
+.profit-verdict {
+  margin: 6px 0 2px;
+  font: 600 13px / 1.5 var(--sans);
+}
+.profit-verdict.good {
+  color: var(--hi);
+}
+.profit-verdict.warn {
+  color: var(--seal);
+}
+.combo-chips .chip.soft {
+  border-style: dashed;
+  color: var(--ink-3);
+}
+.profit-formula {
+  font-family: var(--num);
+  letter-spacing: 0.01em;
+}
+.profit-wage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+.profit-wage label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 500 12px / 1 var(--sans);
+  color: var(--ink-2);
+}
+.profit-wage input {
+  width: 88px;
+  background: var(--well);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 6px 9px;
+  font: 500 13px / 1 var(--num);
+  font-variant-numeric: tabular-nums;
+}
+.profit-wage input:focus {
+  outline: none;
+  border-color: var(--frame);
+}
+/* <=720px：行情榜从七列表格换单列卡片（评测 P0）——表头整行退场，行内两排：
+   上排武器名 + 利润，下排挂单/周转/中位三个带 .cl 小标签的数字 */
+@media (max-width: 720px) {
+  .market-head-row {
+    display: none;
+  }
+  .market-row {
+    grid-template-columns: 26px minmax(0, 1fr) auto auto auto;
+    column-gap: 8px;
+    row-gap: 3px;
+    padding: 10px 8px;
+  }
+  .market-row .rank {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+  .market-row .wname {
+    grid-column: 2 / 5;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .market-row .wprofit {
+    grid-column: 5;
+    grid-row: 1;
+  }
+  .market-row .wlistings {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+  .market-row .wturnover {
+    grid-column: 4;
+    grid-row: 2;
+  }
+  .market-row .wprice {
+    grid-column: 5;
+    grid-row: 2;
+  }
+  .market-row .wcls {
+    display: none;
+  }
+  .market-row .cl {
+    display: inline;
+    font: 400 11px / 1 var(--sans);
+    color: var(--ink-3);
+    margin-left: 3px;
+  }
+  .market-detail {
+    padding-left: 12px;
+  }
+}
+
+/* ---------- account (可选登录：游客无感，登录解锁云同步) ---------- */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--overlay);
+}
+.auth-panel {
+  width: min(360px, 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--seal) 3%, var(--sheet)), var(--sheet) 90px), var(--sheet);
+  border: 1px solid var(--rule);
+  padding: 22px 24px 18px;
+  box-shadow: var(--shadow);
+}
+.auth-form h2 {
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 17px var(--serif);
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.auth-field {
+  display: block;
+  margin-bottom: 12px;
+}
+.auth-field span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+}
+.auth-field input {
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  padding: 8px 10px;
+}
+.auth-field input:focus {
+  outline: none;
+  border-color: var(--seal);
+}
+.auth-hint {
+  margin: -4px 0 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.auth-submit {
+  width: 100%;
+  border: 1px solid var(--seal);
+  background: var(--seal);
+  color: var(--paper);
+  font: 600 14px var(--serif);
+  letter-spacing: 0.08em;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.auth-submit:hover:not(:disabled) {
+  background: var(--seal-strong, var(--seal));
+}
+.auth-submit:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.auth-switch {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 10px;
+}
+.auth-privacy,
+.auth-line {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+.auth-privacy {
+  margin: 14px 0 0;
+  border-top: 1px dashed var(--rule);
+  padding-top: 10px;
+}
+.auth-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.auth-plan {
+  border: 1px solid var(--rule);
+  padding: 1px 8px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.auth-plan.pro {
+  border-color: var(--seal);
+  color: var(--seal);
+  font-weight: 600;
+}
+.auth-sync {
+  color: var(--ink-3);
+}
+.auth-err {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--bad, #b23b3b);
+}
+.auth-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--ok, #2e7d43);
+}
+.auth-logout {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* ---------- 分享链接：导入确认 + 面板头上的分享按钮 ---------- */
+.share-ask h2 {
+  margin: 0 0 10px;
+  font: 700 17px / 1.4 var(--serif);
+  letter-spacing: 0.05em;
+}
+.share-ask .share-body {
+  margin: 0;
+  font: 400 13.5px / 1.7 var(--sans);
+  color: var(--ink-2);
+}
+.share-ask .share-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.share-ask .share-btns .auth-submit {
+  width: auto;
+  padding: 9px 22px;
+}

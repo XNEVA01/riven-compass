@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>仪表盘</h1>
+<div class="cards">
+  <div class="card"><b>{{ stats.users_total }}</b><span>注册用户</span></div>
+  <div class="card"><b>{{ stats.users_7d }}</b><span>近 7 天新增</span></div>
+  <div class="card"><b>{{ stats.logins_today }}</b><span>今日登录</span></div>
+  <div class="card"><b>{{ stats.synced }}</b><span>已云同步会话</span></div>
+</div>
+
+<h2>近 7 天功能使用计数（按天 × 类型，收费计量的底座）</h2>
+<table>
+  <tr><th>日期</th><th>类型</th><th>次数</th></tr>
+  {% for r in by_day %}
+  <tr><td>{{ r.day }}</td><td>{{ r.type }}</td><td>{{ r.c }}</td></tr>
+  {% else %}
+  <tr><td colspan="3" class="muted">暂无数据</td></tr>
+  {% endfor %}
+</table>
+
+<h2>最近注册</h2>
+<table>
+  <tr><th>ID</th><th>邮箱</th><th>套餐</th><th>注册时间</th><th>最近登录</th><th>7 天用量</th></tr>
+  {% for r in recent %}
+  <tr>
+    <td>{{ r.id }}</td><td>{{ r.email }}</td><td>{{ r.plan }}</td>
+    <td>{{ r.created_at[:19] }}</td><td>{{ r.last_login_at[:19] if r.last_login_at else '—' }}</td><td>{{ r.ev7 }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="muted">还没有用户</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

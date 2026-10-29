@@ -12,7 +12,7 @@ import { lookupMarket } from "../market/variants";
 import { loadMarketOnce, type MarketCombo } from "../market/wm";
 import { recognize, warmOcr } from "../ocr/client";
 import type { ParsedCard } from "../ocr/parse";
-import { copyText, decodeSession, shareChannel, shareUrl } from "../share";
+import { copyText, decodeSession, shareChannel, shareUrl, shortShareUrl } from "../share";
 import {
   afterKeep,
   afterMissed,
@@ -377,9 +377,11 @@ export function App() {
     setUndo({ what, before: session, compare });
   };
 
-  // 分享：把当前会话压进链接复制到剪贴板；from= 记真实渠道（qq / bili / douyin / direct），nginx 日志可统计各入口
+  // 分享：先换短链再复制——会话链 900+ 字符微信/QQ 不抓卡片，/s/<code> 约 30 字符可以；后端不可用退回长链
   const onShare = useCallback(async () => {
-    const ok = await copyText(shareUrl(session, shareChannel()));
+    const long = shareUrl(session, shareChannel());
+    const url = await shortShareUrl(long).catch(() => long);
+    const ok = await copyText(url);
     setToast(ok ? s.share.copied : s.share.fail);
   }, [session, s]);
   const acceptShare = () => {

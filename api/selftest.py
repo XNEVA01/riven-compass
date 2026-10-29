@@ -167,6 +167,22 @@ ok("admin set plan pro", "套餐改为 pro" in r.get_data(as_text=True))
 r = c.get("/admin/users?q=100%25")
 ok("admin search with % escapes cleanly", r.status_code == 200)
 
+# ---- 分享短链（公开端点，无需登录） ----
+r, j = jpost("/api/share", {"url": "https://xneva-ai.com/?s=AbCdEfGh1234&from=direct"})
+share_code = j.get("code") or ""
+ok("share create", r.status_code == 200 and re.fullmatch(r"[0-9a-z]{6}", share_code) is not None, str(j))
+r, j = jpost("/api/share", {"url": "https://evil.example.com/?s=abc"})
+ok("share rejects foreign host", r.status_code == 400)
+r, j = jpost("/api/share", {"url": "https://xneva-ai.com/"})
+ok("share rejects url without session", r.status_code == 400)
+r = c.get(f"/s/{share_code}")
+page = r.get_data(as_text=True)
+ok("share page carries og tags and target", r.status_code == 200 and 'property="og:image"' in page and "s=AbCdEfGh1234" in page)
+r = c.get("/s/zzzzzz")
+ok("share unknown code 404", r.status_code == 404)
+r = c.get("/s/short1")
+ok("share bad-shaped code 404", r.status_code == 404)
+
 # ---- 限流（独立 IP 打登录） ----
 rl = api.app.test_client()
 hits = [rl.post("/api/auth/login", json={"email": "x@y.z", "password": "nope"}, headers={"X-Forwarded-For": "9.9.9.9"}) for _ in range(21)]

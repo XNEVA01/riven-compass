@@ -6,6 +6,7 @@
 
 本地自测：RR_API_DEV=1 python3 selftest.py
 """
+import html
 import json
 import os
 import re
@@ -67,6 +68,11 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_day ON events(day, type);
 CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, day);
+CREATE TABLE IF NOT EXISTS share_links (
+  code TEXT PRIMARY KEY,
+  target TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 """
 
 app = Flask(__name__)
@@ -320,6 +326,73 @@ def password_change():
 @app.get("/api/healthz")
 def healthz():
     return jsonify(ok=True)
+
+
+# ---------------- 分享短链：会话链 900+ 字符，微信/QQ 对超长 URL 不抓卡片 ----------------
+SHARE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"  # 去 0/1/o/i/l 等易混字符，31^6≈8.9 亿
+SHARE_CODE_LEN = 6
+# 只收本站自己的会话链（防开放重定向）；s 参数限 URL 安全字符集，hash 同理——尖括号根本进不来
+SHARE_TARGET_RE = re.compile(
+    r"^https://xneva-ai\.com/(preview/)?\?s=[A-Za-z0-9+_.~%-]{1,3000}"
+    r"(&from=(direct|qq|bili|douyin))?(#[A-Za-z0-9_.~%-]{0,64})?$"
+)
+
+
+@app.post("/api/share")
+def api_share_create():
+    if not rate_ok(f"share:{client_ip()}", 30, 3600):
+        return jsonify(error="rate_limited"), 429
+    target = str((request.get_json(silent=True) or {}).get("url") or "")
+    if not SHARE_TARGET_RE.fullmatch(target):
+        return bad_request("bad_request")
+    for _ in range(5):  # 码空间 8.9 亿，撞码重试足矣
+        code = "".join(secrets.choice(SHARE_ALPHABET) for _ in range(SHARE_CODE_LEN))
+        try:
+            db().execute("INSERT INTO share_links (code, target, created_at) VALUES (?,?,?)", (code, target, now()))
+            db().commit()
+            return jsonify(code=code)
+        except sqlite3.IntegrityError:
+            continue
+    return jsonify(error="busy"), 503
+
+
+@app.get("/s/<code>")
+def share_redirect(code):
+    if len(code) != SHARE_CODE_LEN or any(c not in SHARE_ALPHABET for c in code):
+        abort(404)
+    row = db().execute("SELECT target FROM share_links WHERE code=?", (code,)).fetchone()
+    if row is None:
+        abort(404)
+    target = row["target"]
+    safe = html.escape(target, quote=True)  # 正则白名单之外的双保险
+    # 中转页而不做 302：OG 标签静态写死（爬虫不执行 JS，也不一定跟随重定向），meta refresh + JS 负责真人跳转
+    return f"""<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>紫卡罗盘 · 裂罅洗卡与行情规划器</title>
+    <meta name="description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；同时算清配卡伤害、击杀耗时与行情利润。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="紫卡罗盘" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
+    <meta property="og:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
+    <meta property="og:url" content="https://xneva-ai.com/" />
+    <meta property="og:image" content="https://xneva-ai.com/og-cover.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="紫卡罗盘：裂罅洗卡与行情规划器" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
+    <meta name="twitter:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
+    <meta name="twitter:image" content="https://xneva-ai.com/og-cover.jpg" />
+    <meta http-equiv="refresh" content="0; url={safe}" />
+  </head>
+  <body>
+    正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript>
+    <script>location.replace({json.dumps(target)});</script>
+  </body>
+</html>"""
 
 
 # ---------------- 管理后台（服务器渲染，单管理员场景） ----------------

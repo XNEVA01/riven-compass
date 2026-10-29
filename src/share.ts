@@ -71,6 +71,26 @@ export function shareChannel(): string {
   return "direct";
 }
 
+const shortLinks = new Map<string, string>();
+
+/** 会话链接 900+ 字符，微信/QQ 对超长 URL 不抓卡片：换 /s/<code> 短链（约 30 字符）再发；后端不可用由调用方退回长链 */
+export async function shortShareUrl(longUrl: string): Promise<string> {
+  const hit = shortLinks.get(longUrl);
+  if (hit) return hit;
+  const res = await fetch("/api/share", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: longUrl }),
+  });
+  if (!res.ok) throw new Error(`share ${res.status}`);
+  const code = ((await res.json()) as { code?: string }).code;
+  if (!code || !/^[0-9a-z]{6}$/.test(code)) throw new Error("bad code");
+  if (shortLinks.size > 50) shortLinks.clear();
+  const short = `${location.origin}/s/${code}`;
+  shortLinks.set(longUrl, short);
+  return short;
+}
+
 /** null = 链接读不出来或内容无效（压缩坏、版本太新、武器不认识）；调用方给提示，不白屏 */
 export function decodeSession(code: string): Session | null {
   if (!code) return null;

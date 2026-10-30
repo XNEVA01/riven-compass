@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import combat from "../data/combat.json";
 import { ENEMIES } from "./data";
 import type { ModCard, WeaponPanel } from "./engine";
 import { computeBuild } from "./engine";
+
+const weapon = (en: string): WeaponPanel => {
+  const w = (combat.weapons as unknown as WeaponPanel[]).find((x) => x.en === en);
+  if (!w) throw new Error(`weapon not found: ${en}`);
+  return w;
+};
 
 const braton: WeaponPanel = {
   id: "/Lotus/Weapons/Tenno/Rifle/Rifle",
@@ -96,8 +103,8 @@ describe("element synthesis", () => {
     expect(r.dmg.heat).toBeCloseTo(35 * 0.9, 0);
   });
 
-  it("innate element pairs first with a mod element", () => {
-    // Lanka is innate electricity; adding a toxin mod yields corrosive
+  it("innate element pairs last, still completing with the only mod element", () => {
+    // Lanka is innate electricity; adding a toxin mod yields corrosive (two-element case)
     const r = computeBuild(lanka, [mod("Tox", { tox: 0.6 })]);
     expect(r.dmg.corrosive).toBeCloseTo(525 * (1 + 0.6), -1);
     expect(r.dmg.electricity).toBeUndefined();
@@ -180,5 +187,53 @@ describe("faction damage (驱逐/灭亡/净化)", () => {
     // 直伤精确 ×1.55；DoT 吃阵营平方（基伤一次、每跳一次）→ TTK 缩得比 /1.55 更快
     expect(withMod.vsEnemy?.directSustainedDps).toBeCloseTo((bare.vsEnemy?.directSustainedDps ?? 0) * 1.55, 5);
     expect(withMod.vsEnemy?.timeToKill ?? 0).toBeLessThan((bare.vsEnemy?.timeToKill ?? Number.POSITIVE_INFINITY) / 1.55);
+  });
+});
+
+describe("innate element pairing order (Wiki: innate pairs LAST; same-named mod drags it to its slot)", () => {
+  // 信条·漫射者：穿刺 40 + 固有火焰 30（总 70）；伊格尼斯：固有火焰 33；托里德：固有毒素 140
+  const tenetPlinx = weapon("Tenet Plinx");
+
+  it("heat mod drags innate heat to its slot: heat+elec+tox -> radiation+toxin (信条·漫射者)", () => {
+    const r = computeBuild(tenetPlinx, [mod("Heated Charge", { heat: 0.9 }), mod("Jolt", { elec: 0.6 }), mod("Pathogen Rounds", { tox: 0.6 })]);
+    // 火焰槽 = 0.9(火MOD) + 30/70(固有被拉入)，与电击配对成辐射；毒素殿后落单
+    expect(r.dmg.radiation).toBeCloseTo(70 * (0.9 + 30 / 70 + 0.6), 4);
+    expect(r.dmg.toxin).toBeCloseTo(70 * 0.6, 4);
+    expect(r.dmg.corrosive).toBeUndefined();
+    expect(r.dmg.heat).toBeUndefined();
+  });
+
+  it("without the same-named mod, innate heat pairs LAST: elec+tox -> corrosive, heat stays standalone", () => {
+    const r = computeBuild(tenetPlinx, [mod("Jolt", { elec: 0.6 }), mod("Pathogen Rounds", { tox: 0.6 })]);
+    expect(r.dmg.corrosive).toBeCloseTo(70 * 1.2, 4);
+    expect(r.dmg.heat).toBeCloseTo(30, 4); // 固有火殿后落单，不再被拆去配对
+  });
+
+  it("Ignis (innate heat): heat+tox+cold -> gas+cold (毒气+冰冻)", () => {
+    const r = computeBuild(weapon("Ignis"), [mod("Thermite Rounds", { heat: 0.6 }), mod("Malignant Force", { tox: 0.6 }), mod("Rime Rounds", { cold: 0.6 })]);
+    // 固有火占满全部基伤（33/33），火MOD将其拉入首槽与毒配对成毒气；冰冻殿后落单
+    expect(r.dmg.gas).toBeCloseTo(33 * (0.6 + 1 + 0.6), 4);
+    expect(r.dmg.cold).toBeCloseTo(33 * 0.6, 4);
+    expect(r.dmg.heat).toBeUndefined();
+    expect(r.dmg.viral).toBeUndefined();
+  });
+
+  it("Torid (innate toxin): cold+heat -> blast, toxin stays standalone (爆炸+毒素)", () => {
+    const r = computeBuild(weapon("Torid"), [mod("Rime Rounds", { cold: 0.6 }), mod("Thermite Rounds", { heat: 0.6 })]);
+    // 固有毒殿后落单；冰+火配对成爆炸
+    expect(r.dmg.blast).toBeCloseTo(140 * 1.2, 4);
+    expect(r.dmg.toxin).toBeCloseTo(140, 4);
+    expect(r.dmg.viral).toBeUndefined();
+  });
+});
+
+describe("crit tiers over 100% & negative mod stats", () => {
+  it("132% crit keeps the full tier expectation (1 + cc x (cd-1), not truncated)", () => {
+    // 信条·漫射者 0.44 cc + 关键延迟(+200% cc) = 1.32；关键延迟 -20% 射速（P0-2 修复后为负面）
+    const plinx = weapon("Tenet Plinx");
+    const r = computeBuild(plinx, [mod("Critical Delay", { cc: 2, fr: -0.2 })]);
+    expect(r.cc).toBeCloseTo(1.32, 6);
+    expect(r.critFactor).toBeCloseTo(1 + 1.32 * (3 - 1), 6);
+    expect(r.fr).toBeCloseTo(plinx.fr * 0.8, 6);
   });
 });

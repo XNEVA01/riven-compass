@@ -657,7 +657,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                 </div>
                 <div>
                   <dt>{t.stat.cc}</dt>
-                  <dd className="fig">{pct(Math.min(1, r.cc))}</dd>
+                  <dd className="fig">{pct(r.cc)}</dd>
                 </div>
                 <div>
                   <dt>{t.stat.cd}</dt>

@@ -213,19 +213,27 @@ export function synthesize(w: WeaponPanel, sums: Record<string, number>, element
     slash: 1 + (sums.sla ?? 0),
   };
 
-  // innate base elements enter the pairing queue first
+  // mod elements in slot order; a same-named innate element is pulled into
+  // that mod's slot (Wiki: innate elements pair LAST unless a mod of the
+  // same element drags them to its slot position)
   const queue: Array<{ pair: string; inc: number }> = [];
+  const slotOf: Partial<Record<string, number>> = {};
+  for (const k of elementOrder) {
+    const inc = sums[k] ?? 0;
+    if (inc > 0) {
+      slotOf[ELE_KEY_TO_PAIR_ELEM[k]] = queue.length;
+      queue.push({ pair: ELE_KEY_TO_PAIR_ELEM[k], inc });
+    }
+    extraMul += inc;
+  }
+  // innate base elements enter the pairing queue last (merged into their mod slot when same-named)
   for (const t of BASE_ELE) {
     const base = w.dmg[t] ?? 0;
     if (base > 0) {
-      queue.push({ pair: t, inc: base / total });
+      const at = slotOf[t];
+      if (at != null) queue[at].inc += base / total;
+      else queue.push({ pair: t, inc: base / total });
     }
-  }
-  // mod elements in slot order
-  for (const k of elementOrder) {
-    const inc = sums[k] ?? 0;
-    if (inc > 0) queue.push({ pair: ELE_KEY_TO_PAIR_ELEM[k], inc });
-    extraMul += inc;
   }
   // phys mods contribute share-weighted extra
   for (const t of PHYS) {
@@ -311,7 +319,8 @@ export function computeBuild(
   const rl = w.rl / (1 + (sums.rl ?? 0));
 
   const perShot = panelTotal * ms;
-  const critFactor = 1 + Math.min(1, cc) * (cd - 1);
+  // 暴击层级期望：>100% 的部分不截断（126.3% 就按 1.263 计）
+  const critFactor = 1 + cc * (cd - 1);
 
   // sustained fire rate (Riven Mirror formula)
   let sustainedFr: number;

@@ -38,16 +38,16 @@ ROOT = Path(__file__).resolve().parent.parent
 DT = r"(?:<DT_[A-Z_]+_COLOR>)?"
 
 STAT_RULES: list[tuple[str, str, re.Pattern]] = [
-    ("dmg", "base damage", re.compile(rf"^[+-]?([\d.]+)% Damage$")),
-    ("ms", "multishot", re.compile(r"^[+-]?([\d.]+)% Multishot$")),
-    ("sc", "status chance", re.compile(r"^[+-]?([\d.]+)% Status Chance$")),
-    ("cc", "critical chance", re.compile(r"^[+-]?([\d.]+)% Critical Chance$")),
-    ("cd", "critical damage", re.compile(r"^[+-]?([\d.]+)% Critical Damage$")),
+    ("dmg", "base damage", re.compile(rf"^([+-]?[\d.]+)% Damage$")),
+    ("ms", "multishot", re.compile(r"^([+-]?[\d.]+)% Multishot$")),
+    ("sc", "status chance", re.compile(r"^([+-]?[\d.]+)% Status Chance$")),
+    ("cc", "critical chance", re.compile(r"^([+-]?[\d.]+)% Critical Chance$")),
+    ("cd", "critical damage", re.compile(r"^([+-]?[\d.]+)% Critical Damage$")),
     # fire rate: bows use the doubled value on their native charge model; v1 treats all as flat
-    ("fr", "fire rate", re.compile(r"^[+-]?([\d.]+)% Fire Rate(?: \(x[\d.]+ for Bows\))?$")),
-    ("mag", "magazine", re.compile(r"^[+-]?([\d.]+)% Magazine Capacity$")),
-    ("rl", "reload", re.compile(r"^[+-]?([\d.]+)% Reload Speed$")),
-    ("pt", "punch through", re.compile(r"^[+-]?([\d.]+) Punch Through$")),
+    ("fr", "fire rate", re.compile(r"^([+-]?[\d.]+)% Fire Rate(?: \(x[\d.]+ for Bows\))?$")),
+    ("mag", "magazine", re.compile(r"^([+-]?[\d.]+)% Magazine Capacity$")),
+    ("rl", "reload", re.compile(r"^([+-]?[\d.]+)% Reload Speed$")),
+    ("pt", "punch through", re.compile(r"^([+-]?[\d.]+) Punch Through$")),
 ]
 
 ELE_KEYS = {
@@ -62,9 +62,9 @@ FAC_KEYS = {
 }
 
 for k, label in ELE_KEYS.items():
-    STAT_RULES.append((k, label, re.compile(rf"^[+-]?([\d.]+)% {DT}{label}$")))
+    STAT_RULES.append((k, label, re.compile(rf"^([+-]?[\d.]+)% {DT}{label}$")))
 for k, label in IPS_KEYS.items():
-    STAT_RULES.append((k, label, re.compile(rf"^[+-]?([\d.]+)% {DT}{label}$")))
+    STAT_RULES.append((k, label, re.compile(rf"^([+-]?[\d.]+)% {DT}{label}$")))
 
 def _parse_fac(text: str) -> tuple[str, float] | None:
     """Faction banes: 'x1.3 Damage to Grineer' or '+30% Damage to X' -> increment."""
@@ -73,7 +73,7 @@ def _parse_fac(text: str) -> tuple[str, float] | None:
         m = re.match(rf"^x([\d.]+) Damage to {label}$", clean)
         if m:
             return k, float(m.group(1)) - 1.0
-        m = re.match(rf"^[+-]?([\d.]+)% Damage to {label}$", clean)
+        m = re.match(rf"^([+-]?[\d.]+)% Damage to {label}$", clean)
         if m:
             return k, float(m.group(1)) / 100.0
     return None
@@ -147,8 +147,8 @@ def parse_stat(text: str) -> tuple[str, float] | tuple[str, None]:
 # are not modelable -> cond: true (displayed as a note, never counted).
 STACK_STATS = {"Multishot": "ms", "Critical Chance": "cc", "Status Chance": "sc", "Damage": "dmg"}
 _STACK_ALT = "|".join(STACK_STATS)
-STACK_LINE_RX = re.compile(rf"^[+-]?([\d.]+)% ({_STACK_ALT})(?: when Aiming)? for [\d.]+s\.? Stacks up to (\d+)x")
-STACK_BASE_RX = re.compile(rf"^[+-]?([\d.]+)% ({_STACK_ALT})(?: when Aiming)? for [\d.]+s")
+STACK_LINE_RX = re.compile(rf"^([+-]?[\d.]+)% ({_STACK_ALT})(?: when Aiming)? for [\d.]+s\.? Stacks up to (\d+)x")
+STACK_BASE_RX = re.compile(rf"^([+-]?[\d.]+)% ({_STACK_ALT})(?: when Aiming)? for [\d.]+s")
 
 
 def parse_galvanized(lines: list[str]) -> tuple[dict[str, float], dict | None, bool]:

@@ -201,6 +201,16 @@ describe("faction mods in suggestions (驱逐/灭亡/净化)", () => {
     const s = suggestBuild({ weapon: weapon("Braton Prime"), pool: riflePool, preset: "corrosive" });
     expect(s.mods.some((m) => Object.keys(m.stats).some((k) => k.startsWith("fac")))).toBe(false);
   });
+
+  it("never equips a faction mod and its Primed counterpart together", () => {
+    const grineer = ENEMIES.find((e) => e.id === "Heavy Gunner") ?? ENEMIES[4];
+    const s = suggestBuild({ weapon: weapon("Braton Prime"), pool: riflePool, enemy: { spec: grineer, level: 150 }, preset: "corrosive" });
+    const facKeys = s.mods.flatMap((m) => Object.keys(m.stats).filter((k) => k.startsWith("fac")));
+    expect(facKeys.length).toBeGreaterThan(0); // 对 Grineer 时确实会装阵营卡
+    expect(new Set(facKeys).size).toBe(facKeys.length); // 同一阵营只算一次（Primed 与普通版不能叠装）
+    const names = s.mods.map((m) => m.en);
+    expect(names.includes("Bane Of Grineer") && names.includes("Primed Bane Of Grineer")).toBe(false);
+  });
 });
 
 describe("galvanized mods (镀层) & trigger restrictions", () => {

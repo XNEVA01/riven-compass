@@ -267,6 +267,30 @@ export function weaponClass(weaponId: string | null): RivenClass | null {
   return weaponId ? (weaponById(weaponId)?.cls ?? null) : null;
 }
 
+/** whether a riven class can roll this stat at all */
+const classHasStat = (cls: RivenClass, tag: string) => GAME.classes[cls].stats.some((s) => s.tag === tag);
+
+/**
+ * Carry an entered card over to another riven class: switching weapons must not throw the player's work away.
+ * Stats the new class cannot roll are dropped (they would not resolve); the rest is kept in order.
+ */
+export function cardForClass(card: CardDraft, cls: RivenClass): CardDraft {
+  return {
+    ...card,
+    pos: card.pos.filter((t) => classHasStat(cls, t.tag)),
+    neg: card.neg && classHasStat(cls, card.neg.tag) ? card.neg : null,
+  };
+}
+
+/** the same for a cycling target: keep the wanted / allowed-neg stats the new class can roll, drop the rest */
+export function targetForClass(target: TargetDraft, cls: RivenClass): TargetDraft {
+  return {
+    ...target,
+    sets: target.sets.map((g) => g.map((x) => ({ ...x, tags: x.tags.filter((t) => classHasStat(cls, t)) }))),
+    allowedNeg: target.allowedNeg.filter((t) => classHasStat(cls, t)),
+  };
+}
+
 export function cardLayout(card: CardDraft): Layout | null {
   const p = card.pos.length;
   if (p !== 2 && p !== 3) return null;

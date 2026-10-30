@@ -18,6 +18,7 @@ import {
   afterMissed,
   allGroups,
   type CardDraft,
+  cardForClass,
   cardLayout,
   cardProblem,
   compareIds,
@@ -32,6 +33,7 @@ import {
   saveSession,
   statName,
   type TargetDraft,
+  targetForClass,
   toEngineCard,
   toEngineTarget,
   weaponClass,
@@ -96,9 +98,14 @@ function withWeapon(x: Session, id: string): Session {
   if (!w || x.weaponId === id) return x;
   const sameClass = weaponClass(x.weaponId) === w.cls;
   const p = poolFor(w);
-  const target: TargetDraft = sameClass ? x.target : { ...x.target, sets: [[]], allowedNeg: p.neg, layoutsAuto: true, layouts: x.target.wantNeg ? ["31"] : ["30"] };
+  // another weapon keeps the entered card and cycling target: the same class carries them as-is, another class
+  // carries only the stats it can still roll (dropping the rest) — switching weapons never wipes the player's work
+  const carried = sameClass ? null : targetForClass(x.target, w.cls);
+  const target: TargetDraft = carried
+    ? { ...carried, allowedNeg: carried.allowedNeg.length ? carried.allowedNeg : p.neg, layoutsAuto: true, layouts: x.target.wantNeg ? ["31"] : ["30"] }
+    : x.target;
   // another weapon is another riven: comparisons counted for the last one do not apply
-  return { ...x, weaponId: id, target, card: sameClass ? x.card : { ...x.card, pos: [], neg: null }, chosen: null, counted: [] };
+  return { ...x, weaponId: id, target, card: sameClass ? x.card : cardForClass(x.card, w.cls), chosen: null, counted: [] };
 }
 
 type Theme = "auto" | "light" | "dark";

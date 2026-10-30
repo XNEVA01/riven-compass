@@ -132,9 +132,19 @@ describe("sustained dps", () => {
     const m = 75,
       f = 9.58,
       rl = 2.15;
-    const want = (m * f) / (m - 1 + Math.max(1, rl * f));
+    // 一个弹匣周期 = 弹匣/射速 + 装填（分母是弹匣，不再减 1）
+    const want = (m * f) / (m + Math.max(1, rl * f));
     expect(r.sustainedFr).toBeCloseTo(want, 3);
     expect(r.sustainedDps).toBeLessThan(r.burstDps);
+  });
+
+  it("low-magazine weapons are no longer overestimated by the old mag-1 denominator", () => {
+    const w = weapon("Torid"); // 弹匣 5、装填 1.7：旧公式高估最明显
+    const r = computeBuild(w);
+    const m = Math.round(w.mag);
+    const old = (m * w.fr) / (m - 1 + Math.max(1, w.rl * w.fr));
+    expect(r.sustainedFr).toBeCloseTo((m * w.fr) / (m + Math.max(1, w.rl * w.fr)), 6);
+    expect(r.sustainedFr).toBeLessThan(old);
   });
 });
 

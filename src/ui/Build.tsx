@@ -49,6 +49,7 @@ interface Strings {
   down: string;
   panel: string;
   perShot: string;
+  panelNote: string;
   dps: { burst: string; sustain: string };
   ttk: string;
   enemyBody: { health: string; armor: string; shield: string };
@@ -685,6 +686,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                   </li>
                 ))}
               </ul>
+              <p className="muted small">{t.panelNote}</p>
               {vs && (
                 <ul className="build-vs">
                   <li>

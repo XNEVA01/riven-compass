@@ -83,6 +83,17 @@ function elementKeysOf(mod: ModCard): StatKey[] {
   return out;
 }
 
+/** faction damage keys this mod carries (e.g. facGrineer) */
+function factionKeysOf(mod: ModCard): StatKey[] {
+  return (Object.keys(mod.stats) as StatKey[]).filter((k) => k.startsWith("fac"));
+}
+
+/** two mods of one faction (regular + Primed Bane) cannot be equipped together */
+function clashFaction(a: ModCard, b: ModCard): boolean {
+  const ka = factionKeysOf(a);
+  return ka.length > 0 && factionKeysOf(b).some((k) => ka.includes(k));
+}
+
 /** a mod whose stats are all base elements of one kind -> pairs into compounds */
 function isPureElement(mod: ModCard): boolean {
   const keys = Object.keys(mod.stats) as StatKey[];
@@ -159,7 +170,11 @@ export function suggestBuild(req: BuildRequest): BuildSuggestion {
 
   const score = (mods: ModCard[]): number => scoreResult(computeBuild(req.weapon, mods, req.riven ?? null, req.enemy ?? null));
 
-  const fits = (chosen: ModCard[], u: Unit): boolean => chosen.length + u.mods.length <= slots && !u.mods.some((m) => chosen.some((c) => c.id === m.id));
+  const fits = (chosen: ModCard[], u: Unit): boolean =>
+    chosen.length + u.mods.length <= slots &&
+    !u.mods.some((m) => chosen.some((c) => c.id === m.id)) &&
+    // 同名普通/Prime 阵营卡不可同装（游戏里 Primed 与其普通版不能叠加）
+    !u.mods.some((m) => chosen.some((c) => clashFaction(c, m)));
 
   // 1) greedy seed
   let chosen: ModCard[] = [];

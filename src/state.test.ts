@@ -4,6 +4,7 @@ import {
   afterKeep,
   afterMissed,
   barRange,
+  cardForClass,
   cardProblem,
   compareCount,
   compareIds,
@@ -20,6 +21,7 @@ import {
   saveSession,
   showsUp,
   signedValue,
+  targetForClass,
   toEngineCard,
   toEngineTarget,
   valueBar,
@@ -434,5 +436,43 @@ describe("the saved disposition", () => {
     // kept as it is shown: four decimals at most
     expect(repairSession({ version: 2, disposition: 1.234 }).disposition).toBe(1.234);
     expect(repairSession({ version: 2, disposition: 1.23456 }).disposition).toBe(1.2346);
+  });
+});
+
+describe("switching weapons keeps the entered work", () => {
+  const card = {
+    pos: [
+      { tag: "WeaponFireIterationsMod", shown: 144.5 },
+      { tag: "WeaponCritChanceMod", shown: 100 },
+      { tag: "WeaponDamageAmountMod", shown: 100 },
+    ],
+    neg: { tag: "WeaponZoomFovMod", shown: -30 },
+    cycles: 12,
+  };
+
+  it("carries the card as-is to a class that can roll the same stats", () => {
+    // 三类枪械的紫卡词条表相同：手枪卡换到步枪不丢任何一条
+    expect(cardForClass(card, "Rifle")).toEqual(card);
+  });
+
+  it("keeps only the stats the new class can roll (a melee has no multishot or zoom)", () => {
+    // 近战没有多重、也没有通用「+伤害%」（它用 WeaponMeleeDamageMod）和变焦
+    expect(cardForClass(card, "Melee")).toEqual({
+      pos: [{ tag: "WeaponCritChanceMod", shown: 100 }],
+      neg: null,
+      cycles: 12,
+    });
+  });
+
+  it("carries the cycling target the same way", () => {
+    const target = {
+      ...defaultTarget(),
+      sets: [[{ tags: ["WeaponFireIterationsMod", "WeaponCritChanceMod"], tier: "any" as const }]],
+      allowedNeg: ["WeaponZoomFovMod"],
+    };
+    expect(targetForClass(target, "Rifle")).toEqual(target);
+    const melee = targetForClass(target, "Melee");
+    expect(melee.sets[0][0].tags).toEqual(["WeaponCritChanceMod"]);
+    expect(melee.allowedNeg).toEqual([]);
   });
 });

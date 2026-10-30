@@ -5,7 +5,7 @@
  * Core formulas cross-checked against Riven Mirror (MIT):
  *   total = base_total x (1+sum dmg) x (1 + extraMul)
  *   extraMul = sum(element mods) + sum(phys mods x phys share)
- *   sustained fr = m.f / (m-1+max(1, r.f));  charge: 1 / (1/f + r/m)
+ *   sustained fr = m.f / (m+max(1, r.f));  charge: 1 / (1/f + r/m)
  *   crit factor = 1 + cc x (cd - 1)
  */
 
@@ -327,7 +327,8 @@ export function computeBuild(
   if (w.trigger === "Charge" || (w.fr <= 0 && w.charge)) {
     sustainedFr = 1 / (1 / fr + rl / mag);
   } else {
-    sustainedFr = (mag * fr) / (mag - 1 + Math.max(1, rl * fr));
+    // 一个弹匣周期 = 弹匣/射速 + 装填（社区通用口径；旧版分母用 弹匣-1，低弹匣武器高估 4~6%）
+    sustainedFr = (mag * fr) / (mag + Math.max(1, rl * fr));
   }
 
   // 阵营伤害（驱逐/灭亡/净化）是条件加成：只对所选敌人所属阵营生效；未选敌人时按游戏面板口径不生效

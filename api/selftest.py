@@ -183,6 +183,12 @@ ok("share rejects markup in hash", r.status_code == 400)
 r = c.get(f"/s/{share_code}")
 page = r.get_data(as_text=True)
 ok("share page carries og tags and target", r.status_code == 200 and 'property="og:image"' in page and "s=AbCdEfGh1234" in page)
+# og:url 必须是这条短链自己（写死站点根会让平台把所有分享链聚合成一张卡）
+ok(
+    "share page og:url is the short link itself",
+    f'property="og:url" content="https://xneva-ai.com/s/{share_code}"' in page,
+)
+ok("share page og:image is the cache-busted cover", 'content="https://xneva-ai.com/og-cover-v2.jpg"' in page)
 ok("share page stays final for crawlers (no meta refresh)", "http-equiv" not in page)
 r = c.get("/s/zzzzzz")
 ok("share unknown code 404", r.status_code == 404)

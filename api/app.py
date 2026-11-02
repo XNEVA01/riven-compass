@@ -367,6 +367,8 @@ def share_redirect(code):
         abort(404)
     target = row["target"]
     safe = html.escape(target, quote=True)  # 正则白名单之外的双保险
+    # og:url 必须是这条短链自己：写死站点根会让平台把所有分享链聚合成同一张卡片
+    share_url = f"https://xneva-ai.com/s/{code}"
     # 中转页而不做 302：OG 标签静态写死在这里，爬虫把它当最终页面读。跳转只靠 JS——
     # meta refresh 会被爬虫当重定向跟随，落到 900+ 字符长链上，微信/QQ 又不抓超长 URL 的卡片
     return f"""<!doctype html>
@@ -380,15 +382,16 @@ def share_redirect(code):
     <meta property="og:locale" content="zh_CN" />
     <meta property="og:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
     <meta property="og:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
-    <meta property="og:url" content="https://xneva-ai.com/" />
-    <meta property="og:image" content="https://xneva-ai.com/og-cover.jpg" />
+    <meta property="og:url" content="{share_url}" />
+    <meta property="og:image" content="https://xneva-ai.com/og-cover-v2.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="紫卡罗盘：裂罅洗卡与行情规划器" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
     <meta name="twitter:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
-    <meta name="twitter:image" content="https://xneva-ai.com/og-cover.jpg" />
+    <meta name="twitter:image" content="https://xneva-ai.com/og-cover-v2.jpg" />
   </head>
   <body>
     <p>正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript></p>

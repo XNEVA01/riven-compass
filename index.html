@@ -35,6 +35,22 @@
         if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
       } catch (e) {}
     </script>
+    <!-- 分享短链：本页由 /s/<code> 直接返回（不再用跳转中转页，微信/QQ 才肯出卡片）。
+         这里取回短链对应的会话长链再跳转；爬虫不执行这段脚本，只读上面的 OG 标签。 -->
+    <script>
+      (function () {
+        var m = /^\/s\/([0-9a-z]{6})\/?$/.exec(location.pathname);
+        if (!m) return;
+        fetch("/api/share/" + m[1])
+          .then(function (r) {
+            return r.ok ? r.json() : null;
+          })
+          .then(function (d) {
+            if (d && d.url) location.replace(d.url);
+          })
+          .catch(function () {});
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

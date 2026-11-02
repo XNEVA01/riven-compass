@@ -9,6 +9,18 @@ from pathlib import Path
 
 os.environ["RR_API_DEV"] = "1"
 os.environ["RR_API_DB"] = str(Path(tempfile.mkdtemp()) / "selftest.db")
+# /s/<code> 现在直接返回应用外壳：测试用一份最小外壳，断言 og:url 被替换、正文是应用而非跳转页
+_tmp_home = Path(tempfile.mkdtemp())
+_web_index = _tmp_home / "index.html"
+_web_index.write_text(
+    """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8" />
+<title>紫卡罗盘</title>
+<meta property="og:url" content="https://xneva-ai.com/" />
+<meta property="og:image" content="https://xneva-ai.com/og-cover-v3.jpg" />
+</head><body><div id="root"></div><script type="module" src="/assets/index-x.js"></script></body></html>""",
+    encoding="utf-8",
+)
+os.environ["RR_WEB_INDEX"] = str(_web_index)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import app as api  # noqa: E402
@@ -182,14 +194,18 @@ r, j = jpost("/api/share", {"url": 'https://xneva-ai.com/?s=AbCdEfGh1234#"><scri
 ok("share rejects markup in hash", r.status_code == 400)
 r = c.get(f"/s/{share_code}")
 page = r.get_data(as_text=True)
-ok("share page carries og tags and target", r.status_code == 200 and 'property="og:image"' in page and "s=AbCdEfGh1234" in page)
+ok("share page carries og tags and target", r.status_code == 200 and 'property="og:image"' in page and "s=AbCdEfGh1234" not in page)
 # og:url 必须是这条短链自己（写死站点根会让平台把所有分享链聚合成一张卡）
 ok(
     "share page og:url is the short link itself",
     f'property="og:url" content="https://xneva-ai.com/s/{share_code}"' in page,
 )
 ok("share page og:image is the cache-busted cover", 'content="https://xneva-ai.com/og-cover-v3.jpg"' in page)
-ok("share page has a real <img> for crawlers that ignore og:image", 'src="https://xneva-ai.com/og-cover-v3.jpg"' in page)
+ok("share page is the app shell, not a redirect page", '<div id="root">' in page and "<noscript>" not in page)
+r, j = jget(f"/api/share/{share_code}")
+ok("share target api resolves the long session url", r.status_code == 200 and "s=AbCdEfGh1234" in str(j.get("url") or ""), str(j))
+r, _ = jget("/api/share/zzzzzz")
+ok("share target api 404 for unknown code", r.status_code == 404)
 ok("share page stays final for crawlers (no meta refresh)", "http-equiv" not in page)
 r = c.get("/s/zzzzzz")
 ok("share unknown code 404", r.status_code == 404)

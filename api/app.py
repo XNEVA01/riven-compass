@@ -6,7 +6,6 @@
 
 本地自测：RR_API_DEV=1 python3 selftest.py
 """
-import html
 import json
 import os
 import re
@@ -358,6 +357,47 @@ def api_share_create():
     return jsonify(error="busy"), 503
 
 
+# 分享短链直接返回应用本体（不再用 JS 跳转中转页：微信/QQ 不给纯跳转页生成卡片）。
+# 应用外壳里的内联脚本读到 /s/<code> 后取回目标会话再跳转，真实用户无感。
+WEB_INDEX = Path(os.environ.get("RR_WEB_INDEX", "/var/www/rivenroll/v1-0/index.html"))
+_web_index_cache: dict[str, object] = {"key": None, "html": None}
+
+_FALLBACK_INDEX = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8" />
+<title>紫卡罗盘 · 裂罅洗卡与行情规划器</title>
+<meta property="og:type" content="website" /><meta property="og:site_name" content="紫卡罗盘" />
+<meta property="og:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
+<meta property="og:url" content="https://xneva-ai.com/" />
+<meta property="og:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
+<meta property="og:image" content="https://xneva-ai.com/og-cover-v3.jpg" />
+<meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />
+</head><body><p><img src="https://xneva-ai.com/og-cover-v3.jpg" alt="紫卡罗盘" width="120" height="63" />
+正在打开分享的紫卡……</p></body></html>"""
+
+
+def web_index() -> str:
+    """应用外壳 HTML（按 mtime 缓存）；文件缺失时退回最小 OG 页，短链不至于 5xx。"""
+    try:
+        st = WEB_INDEX.stat()
+    except OSError:
+        return _FALLBACK_INDEX
+    key = (st.st_mtime_ns, st.st_size)
+    if _web_index_cache["key"] != key:
+        _web_index_cache["key"] = key
+        _web_index_cache["html"] = WEB_INDEX.read_text(encoding="utf-8")
+    return str(_web_index_cache["html"])
+
+
+@app.get("/api/share/<code>")
+def api_share_target(code):
+    """短链对应的目标会话（应用外壳里的内联脚本用它完成还原）。"""
+    if len(code) != SHARE_CODE_LEN or any(c not in SHARE_ALPHABET for c in code):
+        abort(404)
+    row = db().execute("SELECT target FROM share_links WHERE code=?", (code,)).fetchone()
+    if row is None:
+        abort(404)
+    return jsonify(url=row["target"])
+
+
 @app.get("/s/<code>")
 def share_redirect(code):
     if len(code) != SHARE_CODE_LEN or any(c not in SHARE_ALPHABET for c in code):
@@ -365,42 +405,12 @@ def share_redirect(code):
     row = db().execute("SELECT target FROM share_links WHERE code=?", (code,)).fetchone()
     if row is None:
         abort(404)
-    target = row["target"]
-    safe = html.escape(target, quote=True)  # 正则白名单之外的双保险
     # og:url 必须是这条短链自己：写死站点根会让平台把所有分享链聚合成同一张卡片
     share_url = f"https://xneva-ai.com/s/{code}"
-    # 中转页而不做 302：OG 标签静态写死在这里，爬虫把它当最终页面读。跳转只靠 JS——
-    # meta refresh 会被爬虫当重定向跟随，落到 900+ 字符长链上，微信/QQ 又不抓超长 URL 的卡片
-    return f"""<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <title>紫卡罗盘 · 裂罅洗卡与行情规划器</title>
-    <meta name="description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；同时算清配卡伤害、击杀耗时与行情利润。" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="紫卡罗盘" />
-    <meta property="og:locale" content="zh_CN" />
-    <meta property="og:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
-    <meta property="og:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
-    <meta property="og:url" content="{share_url}" />
-    <meta property="og:image" content="https://xneva-ai.com/og-cover-v3.jpg" />
-    <meta property="og:image:secure_url" content="https://xneva-ai.com/og-cover-v3.jpg" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="紫卡罗盘：裂罅洗卡与行情规划器" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
-    <meta name="twitter:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
-    <meta name="twitter:image" content="https://xneva-ai.com/og-cover-v3.jpg" />
-    <link rel="image_src" href="https://xneva-ai.com/og-cover-v3.jpg" />
-  </head>
-  <body>
-    <p><img src="https://xneva-ai.com/og-cover-v3.jpg" alt="紫卡罗盘" width="120" height="63" /> 正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript></p>
-    <p><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">新ICP备2025018710号</a></p>
-    <script>location.replace({json.dumps(target)});</script>
-  </body>
-</html>"""
+    page = web_index()
+    # 只替换常量的 og:url，其余标签（含哈希资源引用）原样返回
+    page = re.sub(r'<meta property="og:url" content="[^"]*" />', f'<meta property="og:url" content="{share_url}" />', page, count=1)
+    return page, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 # ---------------- 管理后台（服务器渲染，单管理员场景） ----------------

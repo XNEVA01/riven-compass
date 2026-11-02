@@ -13,6 +13,8 @@ export type StatKey =
   | "cc"
   | "cd"
   | "sc"
+  | "sdur"
+  | "sdmg"
   | "fr"
   | "mag"
   | "rl"
@@ -321,7 +323,9 @@ export const RIVEN_TAG_TO_KEY: Record<string, StatKey> = {
   WeaponFireIterationsMod: "ms",
   WeaponCritChanceMod: "cc",
   WeaponCritDamageMod: "cd",
-  WeaponProcTimeMod: "sc",
+  WeaponStunChanceMod: "sc",
+  WeaponProcTimeMod: "sdur",
+  WeaponStatusDamage: "sdmg",
   WeaponFireRateMod: "fr",
   WeaponClipMaxMod: "mag",
   WeaponReloadSpeedMod: "rl",

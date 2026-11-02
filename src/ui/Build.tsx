@@ -90,6 +90,8 @@ const STAT_EN: Record<string, string> = {
   cc: "crit chance",
   cd: "crit damage",
   sc: "status chance",
+  sdur: "status duration",
+  sdmg: "status damage",
   fr: "fire rate",
   mag: "magazine",
   rl: "reload",

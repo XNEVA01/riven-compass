@@ -161,6 +161,33 @@ export function makeUnits(pool: ModCard[], preset: PresetId, riven?: RivenContri
   return units;
 }
 
+/** compound recipe base element ("electricity") -> semantic stat key ("elec") */
+const PAIR_TO_KEY: Record<string, StatKey> = { heat: "heat", cold: "cold", electricity: "elec", toxin: "tox" };
+
+/** base-element keys physically present in the chosen mods plus the riven */
+function elementKeysIn(mods: ModCard[], riven?: RivenContribution | null): Set<StatKey> {
+  const out = new Set<StatKey>();
+  const add = (stats: Partial<Record<StatKey, number>>) => {
+    for (const [k, v] of Object.entries(stats) as Array<[StatKey, number]>) {
+      if ((v ?? 0) > 0 && BASE_ELE_KEYS.includes(k)) out.add(k);
+    }
+  };
+  for (const m of mods) add(m.stats);
+  if (riven) add(riven.stats);
+  return out;
+}
+
+/**
+ * Does the build actually roll the preset compound? With `keys`, the compound's two base elements must also be
+ * physically on the build (mods or riven) — that rejects a compound that only survives as an innate/standalone value.
+ */
+function carries(r: BuildResult, compound: string, keys: Set<StatKey> | null): boolean {
+  if (((r.dmg as Record<string, number | undefined>)[compound] ?? 0) <= 0) return false;
+  if (!keys) return true;
+  const pair = COMPOUND[compound];
+  return pair != null && keys.has(PAIR_TO_KEY[pair[0]]) && keys.has(PAIR_TO_KEY[pair[1]]);
+}
+
 export function suggestBuild(req: BuildRequest): BuildSuggestion {
   const slots = req.slots ?? 8;
   const ban = new Set(req.ban ?? []);
@@ -176,56 +203,102 @@ export function suggestBuild(req: BuildRequest): BuildSuggestion {
     // 同名普通/Prime 阵营卡不可同装（游戏里 Primed 与其普通版不能叠加）
     !u.mods.some((m) => chosen.some((c) => clashFaction(c, m)));
 
-  // 1) greedy seed
-  let chosen: ModCard[] = [];
-  let cur = score(chosen);
-  const steps: SuggestStep[] = [];
-  for (;;) {
-    if (chosen.length >= slots) break;
-    let best: Unit | null = null;
-    let bestScore = cur;
-    for (const u of units) {
-      if (!fits(chosen, u)) continue;
-      const s = score([...chosen, ...u.mods]);
-      if (s > bestScore * (1 + 1e-9) + 1e-9) {
-        best = u;
-        bestScore = s;
-      }
-    }
-    if (!best) break;
-    chosen = [...chosen, ...best.mods];
-    steps.push({
-      added: best.mods.map((m) => m.zh),
-      gain: bestScore - cur,
-      score: bestScore,
-    });
-    cur = bestScore;
-  }
+  type Found = { mods: ModCard[]; score: number };
 
-  // 2) hill climb: remove one mod, try to fit a better unit in its place
-  let guard = req.maxSwaps ?? 60;
-  let improved = true;
-  while (improved && guard > 0) {
-    improved = false;
-    for (let i = 0; i < chosen.length; i++) {
-      const without = chosen.filter((_, j) => j !== i);
-      for (const u of units) {
-        if (!fits(without, u)) continue;
-        const s = score([...without, ...u.mods]);
-        if (s > cur * (1 + 1e-9) + 1e-9) {
-          chosen = [...without, ...u.mods];
-          cur = s;
-          improved = true;
-          break;
+  // greedy fill from a starting build; `judge` returns -Infinity for builds that break the preset constraint
+  const greedy = (from: ModCard[], candidates: Unit[], judge: (mods: ModCard[]) => number, steps?: SuggestStep[]): Found => {
+    let chosen = [...from];
+    let cur = judge(chosen);
+    for (;;) {
+      if (chosen.length >= slots) break;
+      let best: Unit | null = null;
+      let bestScore = cur;
+      for (const u of candidates) {
+        if (!fits(chosen, u)) continue;
+        const s = judge([...chosen, ...u.mods]);
+        if (s > bestScore * (1 + 1e-9) + 1e-9) {
+          best = u;
+          bestScore = s;
         }
       }
-      if (improved) break;
+      if (!best) break;
+      if (steps) steps.push({ added: best.mods.map((m) => m.zh), gain: bestScore - cur, score: bestScore });
+      chosen = [...chosen, ...best.mods];
+      cur = bestScore;
     }
-    guard--;
+    return { mods: chosen, score: cur };
+  };
+
+  // remove one mod, try to fit a better unit in its place
+  const climb = (start: Found, candidates: Unit[], judge: (mods: ModCard[]) => number): Found => {
+    let { mods: chosen, score: cur } = start;
+    let guard = req.maxSwaps ?? 60;
+    let improved = true;
+    while (improved && guard > 0) {
+      improved = false;
+      for (let i = 0; i < chosen.length; i++) {
+        const without = chosen.filter((_, j) => j !== i);
+        for (const u of candidates) {
+          if (!fits(without, u)) continue;
+          const s = judge([...without, ...u.mods]);
+          if (s > cur * (1 + 1e-9) + 1e-9) {
+            chosen = [...without, ...u.mods];
+            cur = s;
+            improved = true;
+            break;
+          }
+        }
+        if (improved) break;
+      }
+      guard--;
+    }
+    return { mods: chosen, score: cur };
+  };
+
+  // multi-seed greedy (a seed is a unit that already satisfies the constraint), then climb the winner
+  const searchAll = (candidates: Unit[], judge: (mods: ModCard[]) => number): Found | null => {
+    const seeds: Found[] = [];
+    for (const u of candidates) {
+      const s = judge(u.mods);
+      if (Number.isFinite(s)) seeds.push({ mods: [...u.mods], score: s });
+    }
+    if (!seeds.length) return null;
+    seeds.sort((a, b) => b.score - a.score);
+    let best: Found | null = null;
+    for (const seed of seeds.slice(0, 12)) {
+      const found = greedy(seed.mods, candidates, judge);
+      if (!best || found.score > best.score) best = found;
+    }
+    return best ? climb(best, candidates, judge) : null;
+  };
+
+  // 1) the ordinary search first (auto presets stop here)
+  const steps: SuggestStep[] = [];
+  const base = climb(greedy([], units, score, steps), units, score);
+  let best = base;
+
+  // 2) hard preset constraint: a non-auto preset must actually roll its compound
+  const want = PRESETS[preset].compounds?.[0];
+  if (want && !carries(computeBuild(req.weapon, base.mods, req.riven ?? null, req.enemy ?? null), want, null)) {
+    const judge =
+      (pairRequired: boolean) =>
+      (mods: ModCard[]): number => {
+        const r = computeBuild(req.weapon, mods, req.riven ?? null, req.enemy ?? null);
+        const keys = pairRequired ? elementKeysIn(mods, req.riven) : null;
+        return carries(r, want, keys) ? scoreResult(r) : Number.NEGATIVE_INFINITY;
+      };
+    const pair = COMPOUND[want];
+    const pairKeys = pair ? new Set<StatKey>([PAIR_TO_KEY[pair[0]], PAIR_TO_KEY[pair[1]]]) : null;
+    // phase 1: only the preset's own two base elements may enter as pure element cards, and both must really be
+    // on the build; phase 2 falls back to any card that yields the compound (standalone compound stats)
+    const pairUnits = pairKeys ? units.filter((u) => u.mods.every((m) => !isPureElement(m) || pairKeys.has(elementKeysOf(m)[0]))) : units;
+    const found = searchAll(pairUnits, judge(pairKeys != null)) ?? searchAll(units, judge(false));
+    // nothing can reach the preset -> keep the original best instead of failing
+    if (found) best = found;
   }
 
-  const result = computeBuild(req.weapon, chosen, req.riven ?? null, req.enemy ?? null);
-  return { mods: chosen, score: cur, result, steps };
+  const result = computeBuild(req.weapon, best.mods, req.riven ?? null, req.enemy ?? null);
+  return { mods: best.mods, score: best.score, result, steps };
 }
 
 /** per-mod marginal value of a finished build (for the UI table) */

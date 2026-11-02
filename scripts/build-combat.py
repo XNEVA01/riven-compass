@@ -92,7 +92,8 @@ REJECT_MARKERS = (
 )
 
 STAT_ZH = {
-    "dmg": "伤害", "ms": "多重射击", "sc": "异常触发", "cc": "暴击率", "cd": "暴击伤害",
+    "dmg": "伤害", "ms": "多重射击", "sc": "异常触发", "sdur": "异常状态时间", "sdmg": "异常状态伤害",
+    "cc": "暴击率", "cd": "暴击伤害",
     "fr": "射速", "mag": "弹匣容量", "rl": "装填速度", "pt": "穿透",
     "imp": "冲击", "pun": "穿刺", "sla": "切割",
     "heat": "火焰", "cold": "冰冻", "elec": "电击", "tox": "毒素",
@@ -210,6 +211,22 @@ INCARNON_WIKI = {
     "/Lotus/Weapons/Tenno/Shotgun/PrimeBoar": {"beams": 3, "mag": 150},         # Boar Prime
 }
 
+# magazineSize overrides: wfcd omits the field for these, which the engine reads as "no magazine"
+# (null -> magazine mods do nothing and sustained fire rate is the fire rate itself).
+# Numeric values verified on the Wiki (2026-11); the nulls are weapons that genuinely have no magazine.
+MAG_OVERRIDES: dict[str, float | None] = {
+    "/Lotus/Weapons/Corpus/LongGuns/CrpSplitLaser/CrpSplitLaser": 70,  # Convectrix 导热聚焦枪: 70 发
+    "/Lotus/Types/Friendly/Pets/MoaPets/MoaPetComponents/SwarmerWeapon": 80,  # Helstrum 赫尔斯壮: 80 发
+    # Nataruk 太始弓：源数据缺字段；数据集内其余弓统一记 1（无限弹药弓的推断口径）
+    "/Lotus/Weapons/Tenno/Bows/Omicrus/OmicrusPlayerWep": 1,
+    "/Lotus/Weapons/Tenno/Grimoire/TnGrimoire": None,  # 魔典：Tome 无弹匣机制
+    "/Lotus/Types/Friendly/Pets/ZanukaPets/ZanukaPetMeleeWeaponPS": None,  # Akaten：猎犬近战
+    "/Lotus/Types/Friendly/Pets/ZanukaPets/ZanukaPetMeleeWeaponIP": None,  # Batoten：猎犬近战
+    "/Lotus/Types/Friendly/Pets/ZanukaPets/ZanukaPetMeleeWeaponIS": None,  # Lacerten：猎犬近战
+    "/Lotus/Types/Sentinels/SentinelWeapons/SentGlaiveWeapon": None,  # Deconstructor：守护近战
+    "/Lotus/Types/Sentinels/SentinelWeapons/DeconstructorPrime/PrimeHeliosGlaiveWeapon": None,  # Deconstructor Prime
+}
+
 
 # ---------------- source loading ----------------
 
@@ -324,7 +341,7 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
                 "cd": w.get("criticalMultiplier"),
                 "sc": w.get("procChance"),
                 "fr": w.get("fireRate"),
-                "mag": w.get("magazineSize"),
+                "mag": MAG_OVERRIDES.get(uid, w.get("magazineSize")),
                 "rl": w.get("reloadTime"),
                 "ms": w.get("multishot") or 1,
                 "omega": w.get("omegaAttenuation"),

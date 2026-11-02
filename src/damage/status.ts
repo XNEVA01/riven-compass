@@ -46,45 +46,49 @@ export function procRates(dmg: Partial<Record<DamageTypeKey, number>>, panelTota
   return { total, byType };
 }
 
-const stacksIn = (ratePerSec: number, window: number) => Math.max(0, Math.min(10, ratePerSec * window));
+const stacksIn = (ratePerSec: number, window: number, durMul = 1) => Math.max(0, Math.min(10, ratePerSec * window * durMul));
 
-/** 病毒：生命伤害乘数（首层 +100%，后续 +25%/层，上限 +325%） */
-export function viralHealthMul(ratePerSec: number): { stacks: number; mul: number } {
-  const stacks = stacksIn(ratePerSec, 6);
+/** 病毒：生命伤害乘数（首层 +100%，后续 +25%/层，上限 +325%）；durMul = 紫卡异常时间倍率 */
+export function viralHealthMul(ratePerSec: number, durMul = 1): { stacks: number; mul: number } {
+  const stacks = stacksIn(ratePerSec, 6, durMul);
   return { stacks, mul: stacks < 1 ? 1 : 1 + Math.min(3.25, 1 + 0.25 * (stacks - 1)) };
 }
 
-/** 磁力：护盾伤害乘数（首层 +100%，后续 +25%/层，上限 +325%） */
-export function magneticShieldMul(ratePerSec: number): { stacks: number; mul: number } {
-  const stacks = stacksIn(ratePerSec, 6);
+/** 磁力：护盾伤害乘数（首层 +100%，后续 +25%/层，上限 +325%）；durMul = 紫卡异常时间倍率 */
+export function magneticShieldMul(ratePerSec: number, durMul = 1): { stacks: number; mul: number } {
+  const stacks = stacksIn(ratePerSec, 6, durMul);
   return { stacks, mul: stacks < 1 ? 1 : 1 + Math.min(3.25, 1 + 0.25 * (stacks - 1)) };
 }
 
-/** 腐蚀：护甲削减比例（首层 26%，后续 +6%/层，上限 80%；8s 窗口） */
-export function corrosiveArmorStrip(ratePerSec: number): { stacks: number; strip: number } {
-  const stacks = stacksIn(ratePerSec, 8);
+/** 腐蚀：护甲削减比例（首层 26%，后续 +6%/层，上限 80%；8s 窗口）；durMul = 紫卡异常时间倍率 */
+export function corrosiveArmorStrip(ratePerSec: number, durMul = 1): { stacks: number; strip: number } {
+  const stacks = stacksIn(ratePerSec, 8, durMul);
   return { stacks, strip: stacks < 1 ? 0 : Math.min(0.8, 0.26 + 0.06 * (stacks - 1)) };
 }
 
 /** 火焰：点燃期间稳定剥甲 50%（2s 爬升，稳态视为常驻） */
 export const HEAT_ARMOR_STRIP = 0.5;
 
-/** 每秒 DoT 面板伤害（未过防具）：rate × 跳数 × 每跳系数 × DoT基伤 × (1+元素%) × 阵营² × 暴击期望 */
+/** 每秒 DoT 面板伤害（未过防具）：
+ *  rate × 跳数 × 时长倍率 × 每跳系数 × DoT基伤 × (1+元素%) × 阵营² × 暴击期望 × 异常伤害倍率
+ *  durMul/dmgMul 来自紫卡「异常状态时间 / 异常状态伤害」词条（线性简化建模）。 */
 export function dotPerSecond(
   rates: ProcRates,
   dotBase: number,
   elemBonus: { heat: number; toxin: number; gas: number },
   critFactor: number,
   factionMul: number,
+  mul: { durMul: number; dmgMul: number } = { durMul: 1, dmgMul: 1 },
 ): Record<DotKey, number> {
   const f2 = factionMul * factionMul;
-  const tick = (rate: number, frac: number, ticks: number, bonus = 0) => (rate > 0 ? rate * ticks * frac * dotBase * (1 + bonus) * f2 * critFactor : 0);
+  const tick = (rate: number, frac: number, ticks: number, bonus = 0, durMul = mul.durMul) =>
+    rate > 0 ? rate * ticks * durMul * frac * dotBase * (1 + bonus) * f2 * critFactor * mul.dmgMul : 0;
   return {
     slash: tick(rates.byType.slash ?? 0, 0.35, 6),
     heat: tick(rates.byType.heat ?? 0, 0.5, 6, elemBonus.heat),
     toxin: tick(rates.byType.toxin ?? 0, 0.5, 6, elemBonus.toxin),
     gas: tick(rates.byType.gas ?? 0, 0.5, 6, elemBonus.gas),
-    blast: tick(rates.byType.blast ?? 0, 0.3, 1),
+    blast: tick(rates.byType.blast ?? 0, 0.3, 1, 0, 1), // 爆炸是单次结算，不吃异常时间
   };
 }
 

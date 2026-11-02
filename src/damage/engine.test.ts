@@ -141,9 +141,10 @@ describe("sustained dps", () => {
   it("low-magazine weapons are no longer overestimated by the old mag-1 denominator", () => {
     const w = weapon("Torid"); // 弹匣 5、装填 1.7：旧公式高估最明显
     const r = computeBuild(w);
-    const m = Math.round(w.mag);
-    const old = (m * w.fr) / (m - 1 + Math.max(1, w.rl * w.fr));
-    expect(r.sustainedFr).toBeCloseTo((m * w.fr) / (m + Math.max(1, w.rl * w.fr)), 6);
+    const m = Math.round(w.mag as number);
+    const rl = w.rl as number;
+    const old = (m * w.fr) / (m - 1 + Math.max(1, rl * w.fr));
+    expect(r.sustainedFr).toBeCloseTo((m * w.fr) / (m + Math.max(1, rl * w.fr)), 6);
     expect(r.sustainedFr).toBeLessThan(old);
   });
 });

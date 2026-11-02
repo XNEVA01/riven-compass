@@ -24,8 +24,8 @@ export interface IncarnonSpec {
   fr: number;
   /** 固有光束/弹丸数（Wiki 核验，如野猪 3 条链式光束）：并入多重射击基数 */
   beams?: number;
-  /** 形态独立弹匣（固定值，不受弹匣 MOD 影响；缺省回落基础弹匣） */
-  mag?: number;
+  /** 形态独立弹匣（固定值，不受弹匣 MOD 影响；缺省回落基础弹匣；null = 无弹匣机制） */
+  mag?: number | null;
 }
 
 export interface WeaponPanel {
@@ -39,8 +39,10 @@ export interface WeaponPanel {
   cd: number;
   sc: number;
   fr: number;
-  mag: number;
-  rl: number;
+  /** 弹匣容量；null = 该武器没有弹匣机制（魔典/守护近战等），弹匣 MOD 不生效、无装填循环 */
+  mag: number | null;
+  /** 装填时间；null = 无装填 */
+  rl: number | null;
   ms: number;
   omega?: number;
   trigger?: string;
@@ -66,8 +68,8 @@ export function incarnonPanel(w: WeaponPanel): WeaponPanel {
     sc: i.sc,
     fr: i.fr,
     ms: i.beams ?? 1,
-    mag: i.mag ?? w.mag,
-    fixedMag: i.mag != null,
+    mag: i.mag !== undefined ? i.mag : w.mag,
+    fixedMag: i.mag !== undefined,
     trigger: undefined,
     charge: undefined,
   };
@@ -111,7 +113,8 @@ export interface BuildResult {
   sc: number;
   fr: number;
   ms: number;
-  mag: number;
+  /** 弹匣容量；null = 无弹匣机制（无装填循环） */
+  mag: number | null;
   rl: number;
   /** per-shot damage incl. multishot, pre-crit */
   perShot: number;
@@ -315,8 +318,9 @@ export function computeBuild(
   const ms = (w.ms ?? 1) * (1 + (sums.ms ?? 0));
   const frBase = w.fr > 0 ? w.fr : w.charge ? 1 / w.charge : 0;
   const fr = frBase * (1 + (sums.fr ?? 0));
-  const mag = w.fixedMag ? Math.max(1, Math.round(w.mag)) : Math.max(1, Math.round(w.mag * (1 + (sums.mag ?? 0))));
-  const rl = w.rl / (1 + (sums.rl ?? 0));
+  // 无弹匣机制的武器（魔典/守护近战等）：保持 null，弹匣 MOD 不生效
+  const mag = w.mag == null ? null : w.fixedMag ? Math.max(1, Math.round(w.mag)) : Math.max(1, Math.round(w.mag * (1 + (sums.mag ?? 0))));
+  const rl = (w.rl ?? 0) / (1 + (sums.rl ?? 0));
 
   const perShot = panelTotal * ms;
   // 暴击层级期望：>100% 的部分不截断（126.3% 就按 1.263 计）
@@ -324,7 +328,10 @@ export function computeBuild(
 
   // sustained fire rate (Riven Mirror formula)
   let sustainedFr: number;
-  if (w.trigger === "Charge" || (w.fr <= 0 && w.charge)) {
+  if (mag == null) {
+    // 无弹匣/无装填循环：持续射速就是射速本身（旧口径把缺失值当 1 发弹匣，持续射速被腰斩）
+    sustainedFr = fr;
+  } else if (w.trigger === "Charge" || (w.fr <= 0 && w.charge)) {
     sustainedFr = 1 / (1 / fr + rl / mag);
   } else {
     // 一个弹匣周期 = 弹匣/射速 + 装填（社区通用口径；旧版分母用 弹匣-1，低弹匣武器高估 4~6%）
@@ -369,6 +376,7 @@ export function computeBuild(
       factionMul,
       dotBase,
       elemBonus: { heat: sums.heat ?? 0, toxin: sums.tox ?? 0, gas: sums.gas ?? 0 },
+      statusMul: { durMul: 1 + (sums.sdur ?? 0), dmgMul: 1 + (sums.sdmg ?? 0) },
       enemy,
     });
   }
@@ -390,6 +398,8 @@ function computeVsEnemy(p: {
   factionMul: number;
   dotBase: number;
   elemBonus: { heat: number; toxin: number; gas: number };
+  /** 紫卡「异常状态时间 / 异常状态伤害」倍率（1 = 无加成） */
+  statusMul: { durMul: number; dmgMul: number };
   enemy: EnemyContext;
 }): BuildResult["vsEnemy"] {
   const spec = p.enemy.spec;
@@ -403,9 +413,9 @@ function computeVsEnemy(p: {
 
   // ---- 异常稳态层（status.ts：触发率按伤害占比分配，叠层 = 触发率×窗口时长） ----
   const rates = procRates(p.dmg, p.panelTotal, p.sc, p.ms, p.sustainedFr);
-  const viral = viralHealthMul(rates.byType.viral ?? 0);
-  const magnetic = magneticShieldMul(rates.byType.magnetic ?? 0);
-  const corrosive = corrosiveArmorStrip(rates.byType.corrosive ?? 0);
+  const viral = viralHealthMul(rates.byType.viral ?? 0, p.statusMul.durMul);
+  const magnetic = magneticShieldMul(rates.byType.magnetic ?? 0, p.statusMul.durMul);
+  const corrosive = corrosiveArmorStrip(rates.byType.corrosive ?? 0, p.statusMul.durMul);
   const heatStrip = (rates.byType.heat ?? 0) > 0 ? HEAT_ARMOR_STRIP : 0;
   // 剥甲各来源乘法叠加（wiki：手动/腐蚀/火焰相乘）
   const armor = scaledArmor(spec, lvl) * (1 - manualStrip) * (1 - corrosive.strip) * (1 - heatStrip);
@@ -442,7 +452,7 @@ function computeVsEnemy(p: {
   const directShieldPerSec = shieldPerShot * p.ms * p.critFactor * p.sustainedFr * p.factionMul;
 
   // ---- 异常 DoT 过甲 ----
-  const raw = dotPerSecond(rates, p.dotBase, p.elemBonus, p.critFactor, p.factionMul);
+  const raw = dotPerSecond(rates, p.dotBase, p.elemBonus, p.critFactor, p.factionMul, p.statusMul);
   const throughArmor = (value: number, t: DamageTypeKey) => {
     if (value <= 0) return 0;
     const table = DMG_CLASS_MUL[t];

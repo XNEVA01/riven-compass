@@ -123,4 +123,24 @@ describe("engine integration (combat.json real panels)", () => {
     expect(r.vsEnemy?.status?.magneticStacks).toBeGreaterThan(1);
     expect(r.vsEnemy?.status?.magneticMul).toBeGreaterThan(1);
   });
+
+  it("元素师系列入库了 +90% 状态伤害（补丁 0003 回归）", () => {
+    for (const zh of ["手枪元素师", "步枪元素师", "霰弹枪元素师"]) {
+      const m = allMods.find((x) => x.zh === zh);
+      expect(m, zh).toBeDefined();
+      expect(m?.stats.sdmg, zh).toBeCloseTo(0.9, 6);
+    }
+  });
+
+  it("步枪元素师只放大 DoT，不影响直伤", () => {
+    const build = [byName("Serration"), byName("Cryo Rounds"), byName("Infected Clip")];
+    const base = computeBuild(weapon("Braton Prime"), build, null, gunner);
+    const withEle = computeBuild(weapon("Braton Prime"), [...build, byName("Rifle Elementalist")], null, gunner);
+    // 直伤不受影响（穿透不改弹道伤害），DoT 按 +90% 放大
+    expect(withEle.vsEnemy?.directSustainedDps).toBeCloseTo(base.vsEnemy?.directSustainedDps ?? 0, 5);
+    const dot0 = base.vsEnemy?.status?.dotDpsTotal ?? 0;
+    const dot1 = withEle.vsEnemy?.status?.dotDpsTotal ?? 0;
+    expect(dot0).toBeGreaterThan(0);
+    expect(dot1).toBeGreaterThan(dot0 * 1.5);
+  });
 });

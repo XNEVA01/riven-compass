@@ -332,9 +332,11 @@ def healthz():
 SHARE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"  # 去 0/1/o/i/l 等易混字符，31^6≈8.9 亿
 SHARE_CODE_LEN = 6
 # 只收本站自己的会话链（防开放重定向）；s 参数限 URL 安全字符集，hash 同理——尖括号根本进不来
+# hash 里要放行 "/"：前端分享的链接固定以 "#/" 结尾（SPA 路由），旧正则漏了它，
+# 导致每次 /api/share 都 400，前端退回 900+ 字符长链，QQ/微信就不抓卡片了。
 SHARE_TARGET_RE = re.compile(
     r"^https://xneva-ai\.com/(preview/)?\?s=[A-Za-z0-9+_.~%-]{1,3000}"
-    r"(&from=(direct|qq|bili|douyin))?(#[A-Za-z0-9_.~%-]{0,64})?$"
+    r"(&from=(direct|qq|bili|douyin))?(#[A-Za-z0-9_./~%-]{0,128})?$"
 )
 
 

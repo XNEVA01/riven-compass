@@ -48,6 +48,8 @@ STAT_RULES: list[tuple[str, str, re.Pattern]] = [
     ("mag", "magazine", re.compile(r"^([+-]?[\d.]+)% Magazine Capacity$")),
     ("rl", "reload", re.compile(r"^([+-]?[\d.]+)% Reload Speed$")),
     ("pt", "punch through", re.compile(r"^([+-]?[\d.]+) Punch Through$")),
+    # 异常状态伤害（元素师系列）：只放大 DoT，不进直伤
+    ("sdmg", "status damage", re.compile(r"^([+-]?[\d.]+)% Status Damage$")),
 ]
 
 ELE_KEYS = {

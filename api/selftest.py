@@ -188,7 +188,8 @@ ok(
     "share page og:url is the short link itself",
     f'property="og:url" content="https://xneva-ai.com/s/{share_code}"' in page,
 )
-ok("share page og:image is the cache-busted cover", 'content="https://xneva-ai.com/og-cover-v2.jpg"' in page)
+ok("share page og:image is the cache-busted cover", 'content="https://xneva-ai.com/og-cover-v3.jpg"' in page)
+ok("share page has a real <img> for crawlers that ignore og:image", 'src="https://xneva-ai.com/og-cover-v3.jpg"' in page)
 ok("share page stays final for crawlers (no meta refresh)", "http-equiv" not in page)
 r = c.get("/s/zzzzzz")
 ok("share unknown code 404", r.status_code == 404)

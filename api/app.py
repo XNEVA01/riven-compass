@@ -383,7 +383,8 @@ def share_redirect(code):
     <meta property="og:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
     <meta property="og:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
     <meta property="og:url" content="{share_url}" />
-    <meta property="og:image" content="https://xneva-ai.com/og-cover-v2.jpg" />
+    <meta property="og:image" content="https://xneva-ai.com/og-cover-v3.jpg" />
+    <meta property="og:image:secure_url" content="https://xneva-ai.com/og-cover-v3.jpg" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -391,10 +392,11 @@ def share_redirect(code):
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="紫卡罗盘 · 裂罅洗卡与行情规划器" />
     <meta name="twitter:description" content="贴一张紫卡截图，算出每一步该锁哪条、还要洗多少次、要烧多少赤毒；配卡伤害与行情利润一并算清。" />
-    <meta name="twitter:image" content="https://xneva-ai.com/og-cover-v2.jpg" />
+    <meta name="twitter:image" content="https://xneva-ai.com/og-cover-v3.jpg" />
+    <link rel="image_src" href="https://xneva-ai.com/og-cover-v3.jpg" />
   </head>
   <body>
-    <p>正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript></p>
+    <p><img src="https://xneva-ai.com/og-cover-v3.jpg" alt="紫卡罗盘" width="120" height="63" /> 正在打开分享的紫卡……<noscript>浏览器不支持自动跳转，<a href="{safe}">点这里</a>手动打开。</noscript></p>
     <p><a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">新ICP备2025018710号</a></p>
     <script>location.replace({json.dumps(target)});</script>
   </body>

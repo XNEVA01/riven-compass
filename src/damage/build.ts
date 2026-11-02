@@ -62,6 +62,8 @@ export interface BuildSuggestion {
   score: number;
   result: BuildResult;
   steps: SuggestStep[];
+  /** 紫卡所在的合成槽位（1 起，按 Wiki 槽位层级；无紫卡 = 1） */
+  rivenSlot?: number;
 }
 
 const BASE_ELE_KEYS: ReadonlyArray<StatKey> = ["heat", "cold", "elec", "tox"];
@@ -193,9 +195,9 @@ export function suggestBuild(req: BuildRequest): BuildSuggestion {
   const ban = new Set(req.ban ?? []);
   const pool = req.pool.filter((m) => !ban.has(m.id));
   const preset = req.preset ?? "auto";
-  const units = makeUnits(pool, preset, req.riven ?? null);
-
-  const score = (mods: ModCard[]): number => scoreResult(computeBuild(req.weapon, mods, req.riven ?? null, req.enemy ?? null));
+  const riven = req.riven ?? null;
+  const units = makeUnits(pool, preset, riven);
+  const want = PRESETS[preset].compounds?.[0] ?? null;
 
   const fits = (chosen: ModCard[], u: Unit): boolean =>
     chosen.length + u.mods.length <= slots &&
@@ -272,41 +274,69 @@ export function suggestBuild(req: BuildRequest): BuildSuggestion {
     return best ? climb(best, candidates, judge) : null;
   };
 
-  // 1) the ordinary search first (auto presets stop here)
-  const steps: SuggestStep[] = [];
-  const base = climb(greedy([], units, score, steps), units, score);
-  let best = base;
+  // 一个紫卡槽位下的完整求解；satisfies = 是否满足流派硬约束
+  const solve = (pos: number): BuildSuggestion & { satisfies: boolean } => {
+    const score = (mods: ModCard[]): number => scoreResult(computeBuild(req.weapon, mods, riven, req.enemy ?? null, undefined, pos));
 
-  // 2) hard preset constraint: a non-auto preset must actually roll its compound
-  const want = PRESETS[preset].compounds?.[0];
-  if (want && !carries(computeBuild(req.weapon, base.mods, req.riven ?? null, req.enemy ?? null), want, null)) {
-    const judge =
-      (pairRequired: boolean) =>
-      (mods: ModCard[]): number => {
-        const r = computeBuild(req.weapon, mods, req.riven ?? null, req.enemy ?? null);
-        const keys = pairRequired ? elementKeysIn(mods, req.riven) : null;
-        return carries(r, want, keys) ? scoreResult(r) : Number.NEGATIVE_INFINITY;
-      };
-    const pair = COMPOUND[want];
-    const pairKeys = pair ? new Set<StatKey>([PAIR_TO_KEY[pair[0]], PAIR_TO_KEY[pair[1]]]) : null;
-    // phase 1: only the preset's own two base elements may enter as pure element cards, and both must really be
-    // on the build; phase 2 falls back to any card that yields the compound (standalone compound stats)
-    const pairUnits = pairKeys ? units.filter((u) => u.mods.every((m) => !isPureElement(m) || pairKeys.has(elementKeysOf(m)[0]))) : units;
-    const found = searchAll(pairUnits, judge(pairKeys != null)) ?? searchAll(units, judge(false));
-    // nothing can reach the preset -> keep the original best instead of failing
-    if (found) best = found;
+    // 1) the ordinary search first (auto presets stop here)
+    const steps: SuggestStep[] = [];
+    const base = climb(greedy([], units, score, steps), units, score);
+    let best = base;
+    const baseResult = computeBuild(req.weapon, base.mods, riven, req.enemy ?? null, undefined, pos);
+    let satisfies = !want || carries(baseResult, want, null);
+
+    // 2) hard preset constraint: a non-auto preset must actually roll its compound
+    if (want && !satisfies) {
+      const judge =
+        (pairRequired: boolean) =>
+        (mods: ModCard[]): number => {
+          const r = computeBuild(req.weapon, mods, riven, req.enemy ?? null, undefined, pos);
+          const keys = pairRequired ? elementKeysIn(mods, riven) : null;
+          return carries(r, want, keys) ? scoreResult(r) : Number.NEGATIVE_INFINITY;
+        };
+      const pair = COMPOUND[want];
+      const pairKeys = pair ? new Set<StatKey>([PAIR_TO_KEY[pair[0]], PAIR_TO_KEY[pair[1]]]) : null;
+      // phase 1: only the preset's own two base elements may enter as pure element cards, and both must really be
+      // on the build; phase 2 falls back to any card that yields the compound (standalone compound stats)
+      const pairUnits = pairKeys ? units.filter((u) => u.mods.every((m) => !isPureElement(m) || pairKeys.has(elementKeysOf(m)[0]))) : units;
+      const found = searchAll(pairUnits, judge(pairKeys != null)) ?? searchAll(units, judge(false));
+      // nothing can reach the preset -> keep the original best instead of failing
+      if (found) {
+        best = found;
+        satisfies = true;
+      }
+    }
+
+    const result = best === base ? baseResult : computeBuild(req.weapon, best.mods, riven, req.enemy ?? null, undefined, pos);
+    return { mods: best.mods, score: best.score, result, steps, rivenSlot: pos, satisfies };
+  };
+
+  if (!riven) return solve(1);
+  // Wiki 槽位层级（Modding）：紫卡也是 MOD，按所在槽位参与合成，可占任意槽位。
+  // 逐槽位求解取最优；满足流派硬约束的解优先于未满足的解，平分时保持更靠前的槽位。
+  let pick: (BuildSuggestion & { satisfies: boolean }) | undefined;
+  for (let pos = 1; pos <= slots + 1; pos++) {
+    const cand = solve(pos);
+    if (!pick || (cand.satisfies && !pick.satisfies) || (cand.satisfies === pick.satisfies && cand.score > pick.score * (1 + 1e-9) + 1e-9)) {
+      pick = cand;
+    }
   }
-
-  const result = computeBuild(req.weapon, best.mods, req.riven ?? null, req.enemy ?? null);
-  return { mods: best.mods, score: best.score, result, steps };
+  return pick ?? solve(1);
 }
 
 /** per-mod marginal value of a finished build (for the UI table) */
-export function marginalTable(weapon: WeaponPanel, mods: ModCard[], riven?: RivenContribution | null, enemy?: EnemyContext | null): MarginalRow[] {
-  const score = (ms: ModCard[]): number => scoreResult(computeBuild(weapon, ms, riven ?? null, enemy ?? null));
-  const full = score(mods);
+export function marginalTable(weapon: WeaponPanel, mods: ModCard[], riven?: RivenContribution | null, enemy?: EnemyContext | null, rivenSlot = 1): MarginalRow[] {
+  const score = (ms: ModCard[], pos: number): number => scoreResult(computeBuild(weapon, ms, riven ?? null, enemy ?? null, undefined, pos));
+  const full = score(mods, rivenSlot);
   return mods.map((m, i) => {
-    const loss = full - score(mods.filter((_, j) => j !== i));
+    // 移除的是紫卡之前的卡时，紫卡的合成位次随之上移一格
+    const pos = i < rivenSlot - 1 ? rivenSlot - 1 : rivenSlot;
+    const loss =
+      full -
+      score(
+        mods.filter((_, j) => j !== i),
+        pos,
+      );
     return { mod: m, loss, pct: full > 0 ? loss / full : 0 };
   });
 }

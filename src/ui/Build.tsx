@@ -189,6 +189,8 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const [stripIdx, setStripIdx] = useState(0);
   /** picked mod ids once the player edits anything; null = follow the suggestion */
   const [manualIds, setManualIds] = useState<string[] | null>(null);
+  /** 手动配卡时紫卡所在的合成槽位（1 起，Wiki 槽位层级）；跟随建议时用建议解出的槽位 */
+  const [manualRivenSlot, setManualRivenSlot] = useState(1);
   /** the mod-library search box: filter by name (zh / en), empty shows everything */
   const [poolQuery, setPoolQuery] = useState("");
   /** 镀层击杀叠层：按 mod id 的当前层数（0 = 未触发） */
@@ -225,6 +227,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   useEffect(() => {
     if (session.weaponId) {
       setManualIds(null);
+      setManualRivenSlot(1);
       setStackCounts({});
       setVariantId(null);
       setForm("base");
@@ -243,20 +246,31 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     return manualIds.map((id) => pool.find((m) => m.id === id)).filter((m): m is ModCard => !!m);
   }, [manualIds, pool, selected]);
 
+  /** 紫卡所在的合成槽位（1 起，Wiki 槽位层级）：手动模式用手动值，跟随建议用建议解出的槽位，越界收敛 */
+  const rivenSlot = useMemo(() => {
+    if (!riven) return 1;
+    const base = manualIds != null ? manualRivenSlot : (suggestion?.rivenSlot ?? 1);
+    const len = (manualIds != null ? manualMods?.length : suggestion?.mods.length) ?? 0;
+    return Math.max(1, Math.min(base, len + 1));
+  }, [riven, manualIds, manualRivenSlot, manualMods, suggestion]);
+
   /** the build the page shows: the player's own mods, or the suggestion while following it */
   const active = useMemo(() => {
     if (!activeWeapon) return null;
     if (manualMods) {
-      const result = computeBuild(activeWeapon, manualMods, riven, enemy, stackCounts);
+      const result = computeBuild(activeWeapon, manualMods, riven, enemy, stackCounts, rivenSlot);
       return { mods: manualMods, result, score: scoreResult(result) };
     }
     if (!suggestion) return null;
     // 跟随建议时同样叠算手动设置的击杀层数（无镀层层数时与建议结果一致）
-    const result = computeBuild(activeWeapon, suggestion.mods, riven, enemy, stackCounts);
+    const result = computeBuild(activeWeapon, suggestion.mods, riven, enemy, stackCounts, rivenSlot);
     return { mods: suggestion.mods, result, score: scoreResult(result) };
-  }, [activeWeapon, manualMods, riven, enemy, suggestion, stackCounts]);
+  }, [activeWeapon, manualMods, riven, enemy, suggestion, stackCounts, rivenSlot]);
 
-  const marginals = useMemo(() => (activeWeapon && active ? marginalTable(activeWeapon, active.mods, riven, enemy) : null), [activeWeapon, active, riven, enemy]);
+  const marginals = useMemo(
+    () => (activeWeapon && active ? marginalTable(activeWeapon, active.mods, riven, enemy, rivenSlot) : null),
+    [activeWeapon, active, riven, enemy, rivenSlot],
+  );
 
   const tiers = useMemo(() => {
     if (!activeWeapon || !active) return null;
@@ -271,7 +285,10 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     });
   }, [activeWeapon, engineWeapon, pool, preset, enemy, riven, active]);
 
-  const statMargins = useMemo(() => (activeWeapon && active && riven ? statMarginals(activeWeapon, active.mods, riven, enemy) : null), [activeWeapon, active, riven, enemy]);
+  const statMargins = useMemo(
+    () => (activeWeapon && active && riven ? statMarginals(activeWeapon, active.mods, riven, enemy, rivenSlot) : null),
+    [activeWeapon, active, riven, enemy, rivenSlot],
+  );
 
   /** the coach target as the expected riven's spec: rows of alternatives with a roll bar or a typed value */
   const wanted = useMemo<WantedSpec | null>(() => {
@@ -335,6 +352,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const enterManual = (): string[] => {
     const ids = active ? active.mods.map((m) => m.id) : [];
     setManualIds(ids);
+    setManualRivenSlot(rivenSlot);
     return ids;
   };
   const addMod = (m: ModCard) => {
@@ -345,6 +363,10 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const removeSlot = (i: number) => {
     const ids = manualIds ?? (active ? active.mods.map((m) => m.id) : []);
     setManualIds(ids.filter((_, j) => j !== i));
+    if (!riven) return;
+    // 进手动模式沿用当前槽位；移除的是紫卡之前的卡时，紫卡前面的卡数减一，位次随之上移
+    const cur = manualIds != null ? manualRivenSlot : (suggestion?.rivenSlot ?? 1);
+    setManualRivenSlot(i < cur - 1 ? Math.max(1, cur - 1) : cur);
   };
   const moveSlot = (i: number, dir: -1 | 1) => {
     if (manualIds == null) return;
@@ -358,11 +380,37 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     if (!activeWeapon) return;
     const sug = suggestBuild({ weapon: activeWeapon, pool, slots, riven, preset, enemy });
     setManualIds(sug.mods.map((m) => m.id));
+    setManualRivenSlot(sug.rivenSlot ?? 1);
   };
 
   const equipped = new Set(active ? active.mods.map((m) => m.id) : []);
   const poolFull = (active?.mods.length ?? 0) >= slots;
   const q = poolQuery.trim().toLowerCase();
+
+  /** 合成序列（Wiki 槽位层级）：MOD 按序、紫卡插入其真实槽位；槽号 = 序列位次 */
+  const seq: Array<{ kind: "riven" } | { kind: "mod"; m: ModCard; i: number }> = [];
+  if (active) {
+    const at = riven ? rivenSlot - 1 : -1;
+    active.mods.forEach((m, i) => {
+      if (i === at) seq.push({ kind: "riven" });
+      seq.push({ kind: "mod", m, i });
+    });
+    if (riven && at >= active.mods.length) seq.push({ kind: "riven" });
+  }
+  /** 序列内交换相邻两项：mod↔mod 走 manualIds 交换，mod↔紫卡 走紫卡位次 ±1 */
+  const moveSeq = (si: number, dir: -1 | 1) => {
+    if (manualIds == null) return;
+    const a = seq[si];
+    const b = seq[si + dir];
+    if (!a || !b) return;
+    if (a.kind === "mod" && b.kind === "mod") {
+      moveSlot(a.i, dir);
+      return;
+    }
+    const len = manualIds.length + 1;
+    if (a.kind === "riven") setManualRivenSlot((v) => Math.max(1, Math.min(len, v + dir)));
+    else setManualRivenSlot((v) => Math.max(1, Math.min(len, v - dir)));
+  };
   const shownPool = q ? pool.filter((m) => m.en.toLowerCase().includes(q) || m.zh.toLowerCase().includes(q)) : pool;
 
   const r = active?.result;
@@ -531,64 +579,78 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
               </div>
               <p className="muted small">{manualMods ? t.manualHint : t.autoHint}</p>
               <ol className="build-slots">
-                {riven && (
-                  <li className="riven-slot">
-                    <span className="slot-no">1</span>
-                    <span className="slot-name">{t.riven}</span>
-                    <span className="slot-stats">
-                      {session.card.pos.map((tr) => `${statName(cls, tr.tag, lang)} ${formatDisplay(statOf(cls, tr.tag), tr.shown ?? 0)}`).join("，")}
-                      {session.card.neg ? `，${statName(cls, session.card.neg.tag, lang)} ${formatDisplay(statOf(cls, session.card.neg.tag), session.card.neg.shown ?? 0)}` : ""}
-                    </span>
-                  </li>
-                )}
-                {active.mods.map((m, i) => {
-                  const st = m.stack;
-                  return (
-                    <li key={m.id}>
-                      <span className="slot-no">{i + 1 + (riven ? 1 : 0)}</span>
-                      <span className="slot-name">{lang === "en" ? m.en : m.zh}</span>
-                      <span className="slot-stats">{modStatLine(m, lang, t)}</span>
-                      {st && (
-                        <span className="slot-stack">
-                          <button
-                            type="button"
-                            className="text-btn"
-                            aria-label={t.killStacks}
-                            disabled={(stackCounts[m.id] ?? 0) <= 0}
-                            onClick={() => setStackCounts((c) => ({ ...c, [m.id]: Math.max(0, (c[m.id] ?? 0) - 1) }))}
-                          >
-                            −
-                          </button>
-                          <span className="stack-n">
-                            {t.killStacks} {stackCounts[m.id] ?? 0}/{st.max}
-                          </span>
-                          <button
-                            type="button"
-                            className="text-btn"
-                            aria-label={t.killStacks}
-                            disabled={(stackCounts[m.id] ?? 0) >= st.max}
-                            onClick={() => setStackCounts((c) => ({ ...c, [m.id]: Math.min(st.max, (c[m.id] ?? 0) + 1) }))}
-                          >
-                            +
-                          </button>
-                        </span>
-                      )}
+                {seq.map((e, si) =>
+                  e.kind === "riven" ? (
+                    <li key="riven" className="riven-slot">
+                      <span className="slot-no">{si + 1}</span>
+                      <span className="slot-name">{t.riven}</span>
+                      <span className="slot-stats">
+                        {session.card.pos.map((tr) => `${statName(cls, tr.tag, lang)} ${formatDisplay(statOf(cls, tr.tag), tr.shown ?? 0)}`).join("，")}
+                        {session.card.neg ? `，${statName(cls, session.card.neg.tag, lang)} ${formatDisplay(statOf(cls, session.card.neg.tag), session.card.neg.shown ?? 0)}` : ""}
+                      </span>
                       {manualMods && (
                         <span className="slot-ops">
-                          <button type="button" className="text-btn" aria-label={t.up} title={t.up} disabled={i === 0} onClick={() => moveSlot(i, -1)}>
+                          <button type="button" className="text-btn" aria-label={t.up} title={t.up} disabled={si === 0} onClick={() => moveSeq(si, -1)}>
                             ↑
                           </button>
-                          <button type="button" className="text-btn" aria-label={t.down} title={t.down} disabled={i === active.mods.length - 1} onClick={() => moveSlot(i, 1)}>
+                          <button type="button" className="text-btn" aria-label={t.down} title={t.down} disabled={si === seq.length - 1} onClick={() => moveSeq(si, 1)}>
                             ↓
-                          </button>
-                          <button type="button" className="text-btn" aria-label={t.remove} title={t.remove} onClick={() => removeSlot(i)}>
-                            ✕
                           </button>
                         </span>
                       )}
                     </li>
-                  );
-                })}
+                  ) : (
+                    (() => {
+                      const m = e.m;
+                      const st = m.stack;
+                      return (
+                        <li key={m.id}>
+                          <span className="slot-no">{si + 1}</span>
+                          <span className="slot-name">{lang === "en" ? m.en : m.zh}</span>
+                          <span className="slot-stats">{modStatLine(m, lang, t)}</span>
+                          {st && (
+                            <span className="slot-stack">
+                              <button
+                                type="button"
+                                className="text-btn"
+                                aria-label={t.killStacks}
+                                disabled={(stackCounts[m.id] ?? 0) <= 0}
+                                onClick={() => setStackCounts((c) => ({ ...c, [m.id]: Math.max(0, (c[m.id] ?? 0) - 1) }))}
+                              >
+                                −
+                              </button>
+                              <span className="stack-n">
+                                {t.killStacks} {stackCounts[m.id] ?? 0}/{st.max}
+                              </span>
+                              <button
+                                type="button"
+                                className="text-btn"
+                                aria-label={t.killStacks}
+                                disabled={(stackCounts[m.id] ?? 0) >= st.max}
+                                onClick={() => setStackCounts((c) => ({ ...c, [m.id]: Math.min(st.max, (c[m.id] ?? 0) + 1) }))}
+                              >
+                                +
+                              </button>
+                            </span>
+                          )}
+                          {manualMods && (
+                            <span className="slot-ops">
+                              <button type="button" className="text-btn" aria-label={t.up} title={t.up} disabled={si === 0} onClick={() => moveSeq(si, -1)}>
+                                ↑
+                              </button>
+                              <button type="button" className="text-btn" aria-label={t.down} title={t.down} disabled={si === seq.length - 1} onClick={() => moveSeq(si, 1)}>
+                                ↓
+                              </button>
+                              <button type="button" className="text-btn" aria-label={t.remove} title={t.remove} onClick={() => removeSlot(e.i)}>
+                                ✕
+                              </button>
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })()
+                  ),
+                )}
               </ol>
             </section>
 

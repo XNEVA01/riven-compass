@@ -146,35 +146,40 @@ export interface BuildResult {
 const PHYS: DamageTypeKey[] = ["impact", "puncture", "slash"];
 const BASE_ELE: DamageTypeKey[] = ["heat", "cold", "electricity", "toxin"];
 
-/** collect summed stats from mods + riven (+ galvanized kill stacks); mods order defines element pairing order */
-export function collectStats(mods: Array<ModCard | null | undefined>, riven?: RivenContribution | null, stacks?: Record<string, number>) {
+/**
+ * collect summed stats from mods + riven (+ galvanized kill stacks).
+ *
+ * Wiki（Damage/Modding）合成层级：按 MOD 槽位从左上到右下；紫卡也是 MOD，
+ * 按其所在槽位参与（rivenSlot，1 起的合成顺序位）；同元素多来源合并进
+ * 首次出现的位置（"the first position that element is placed in
+ * establishes its hierarchy"）。
+ */
+export function collectStats(mods: Array<ModCard | null | undefined>, riven?: RivenContribution | null, stacks?: Record<string, number>, rivenSlot = 1) {
   const sums: Record<string, number> = {};
   const elementOrder: string[] = [];
   const bump = (k: StatKey, v: number) => {
     sums[k] = (sums[k] ?? 0) + v;
   };
-  for (const m of mods) {
-    if (!m) continue;
-    for (const [k, v] of Object.entries(m.stats) as Array<[StatKey, number]>) {
+  const take = (stats: Partial<Record<StatKey, number>>) => {
+    for (const [k, v] of Object.entries(stats) as Array<[StatKey, number]>) {
       bump(k, v);
       if (["heat", "cold", "elec", "tox"].includes(k) && v > 0 && !elementOrder.includes(k)) {
         elementOrder.push(k);
       }
     }
+  };
+  const at = riven ? Math.max(1, Math.min(rivenSlot, mods.length + 1)) : -1;
+  mods.forEach((m, i) => {
+    if (riven && i + 1 === at) take(riven.stats);
+    if (!m) return;
+    take(m.stats);
     // 镀层击杀叠层：0 层不生效，≥1 层 = base + count x per
     if (m.stack) {
       const count = stacks?.[m.id] ?? 0;
       if (count > 0) bump(m.stack.stat, (m.stack.base ?? 0) + count * m.stack.per);
     }
-  }
-  if (riven) {
-    for (const [k, v] of Object.entries(riven.stats) as Array<[StatKey, number]>) {
-      bump(k, v);
-      if (["heat", "cold", "elec", "tox"].includes(k) && v > 0 && !elementOrder.includes(k)) {
-        elementOrder.push(k);
-      }
-    }
-  }
+  });
+  if (riven && at > mods.length) take(riven.stats);
   return { sums, elementOrder };
 }
 
@@ -306,8 +311,10 @@ export function computeBuild(
   riven?: RivenContribution | null,
   enemy?: EnemyContext | null,
   stacks?: Record<string, number>,
+  /** 紫卡所在的合成槽位（1 起，Wiki 槽位层级；默认第 1 槽，与 UI 展示一致） */
+  rivenSlot = 1,
 ): BuildResult {
-  const { sums, elementOrder } = collectStats(mods ?? [], riven, stacks);
+  const { sums, elementOrder } = collectStats(mods ?? [], riven, stacks, rivenSlot);
   const { dmg: dmgMap } = synthesize(w, sums, elementOrder);
 
   const panelTotal = Object.values(dmgMap).reduce((a, b) => a + (b ?? 0), 0);

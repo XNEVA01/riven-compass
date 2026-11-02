@@ -39,6 +39,9 @@ describe("preset hard constraint", () => {
       enemy: { spec: ENEMIES[0], level: 150 },
     });
     expect(s.result.dmg.radiation ?? 0).toBeGreaterThan(0);
+    // Wiki 槽位层级回归：解出的合成必须真的成立。紫卡按槽位参与序列：
+    // 本例最优解 = 紫卡毒吃首张电卡成腐蚀，余下电+火配出辐射（腐蚀 337 / 辐射 105 并存）
+    expect(s.rivenSlot ?? 1).toBeGreaterThanOrEqual(1);
   });
 
   it("Acceltra + toxin riven + gas rolls gas, not viral+magnetic (2026-11-02 截图工单)", () => {

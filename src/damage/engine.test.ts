@@ -248,3 +248,57 @@ describe("crit tiers over 100% & negative mod stats", () => {
     expect(r.fr).toBeCloseTo(plinx.fr * 0.8, 6);
   });
 });
+
+describe("紫卡槽位层级（Wiki Modding：紫卡也是 MOD，按所在槽位参与合成）", () => {
+  const toxRiven = { stats: { tox: 1.0 } };
+  const cryo = mod("Cryo Rounds", { cold: 0.6 });
+  const hellfire = mod("Hellfire", { heat: 0.6 });
+
+  it("紫卡第 1 槽：毒素紫卡先与冰 MOD 配对成病毒，火焰落单", () => {
+    const r = computeBuild(braton, [cryo, hellfire], toxRiven, null, undefined, 1);
+    expect(r.dmg.viral).toBeCloseTo(35 * (1.0 + 0.6), 4);
+    expect(r.dmg.heat).toBeCloseTo(35 * 0.6, 4);
+    expect(r.dmg.blast).toBeUndefined();
+    expect(r.dmg.toxin).toBeUndefined();
+  });
+
+  it("紫卡末槽：冰+火先配对成爆炸，毒素紫卡落单", () => {
+    const r = computeBuild(braton, [cryo, hellfire], toxRiven, null, undefined, 3);
+    expect(r.dmg.blast).toBeCloseTo(35 * 1.2, 4);
+    expect(r.dmg.toxin).toBeCloseTo(35 * 1.0, 4);
+    expect(r.dmg.viral).toBeUndefined();
+  });
+
+  it("缺省槽位 = 1（与 UI 把紫卡渲染为第 1 槽一致）", () => {
+    const r = computeBuild(braton, [cryo, hellfire], toxRiven);
+    expect(r.dmg.viral).toBeCloseTo(35 * 1.6, 4);
+  });
+
+  it("同元素多次出现：按首现位置合并配对（R3）", () => {
+    const r = computeBuild(braton, [mod("heat90", { heat: 0.9 }), mod("tox90", { tox: 0.9 }), mod("heat60", { heat: 0.6 }), mod("cold90", { cold: 0.9 })]);
+    expect(r.dmg.gas).toBeCloseTo(35 * (0.9 + 0.6 + 0.9), 4);
+    expect(r.dmg.cold).toBeCloseTo(35 * 0.9, 4);
+    expect(r.dmg.heat).toBeUndefined();
+  });
+
+  it("Wiki 原例 Amprex：第 1 槽电 MOD 把固有电拉进合成序列（R4）", () => {
+    const w = weapon("Amprex"); // 纯电 22
+    const r = computeBuild(w, [mod("Stormbringer", { elec: 0.9 }), mod("Cryo Rounds", { cold: 0.9 })]);
+    expect(r.dmg.magnetic).toBeCloseTo(w.total * (1.0 + 0.9 + 0.9), 4);
+    expect(r.dmg.electricity).toBeUndefined();
+  });
+
+  it("紫卡与固有同名元素也走槽位层级：第 1 槽火紫卡拉 Ignis 固有火并入配对（R4）", () => {
+    const ignis = weapon("Ignis"); // 固有火 33/33
+    const heatRiven = { stats: { heat: 0.9 } };
+    const mods = [mod("Rime Rounds", { cold: 0.6 }), mod("Malignant Force", { tox: 0.9 })];
+    const first = computeBuild(ignis, mods, heatRiven, null, undefined, 1);
+    expect(first.dmg.blast).toBeCloseTo(33 * (0.9 + 1 + 0.6), 4);
+    expect(first.dmg.toxin).toBeCloseTo(33 * 0.9, 4);
+    expect(first.dmg.viral).toBeUndefined();
+    const last = computeBuild(ignis, mods, heatRiven, null, undefined, 3);
+    expect(last.dmg.viral).toBeCloseTo(33 * (0.6 + 0.9), 4);
+    expect(last.dmg.heat).toBeCloseTo(33 * (0.9 + 1), 4);
+    expect(last.dmg.blast).toBeUndefined();
+  });
+});

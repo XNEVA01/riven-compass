@@ -88,6 +88,20 @@ function rivenOf(parts: Array<RivenStat | null>): RivenContribution | null {
 }
 
 /**
+ * 假想紫卡（最优解/目标卡）的评分：它的合成槽位未知，按 Wiki 槽位层级
+ * 逐个可占位次求评分后取最优——玩家会把紫卡插在对它最有利的槽位。
+ */
+function bestOverSlots(weapon: WeaponPanel, mods: ModCard[], riven: RivenContribution | null, enemy: EnemyContext | null): number {
+  if (!riven) return scoreResult(computeBuild(weapon, mods, null, enemy));
+  let best = -Infinity;
+  for (let pos = 1; pos <= mods.length + 1; pos++) {
+    const s = scoreResult(computeBuild(weapon, mods, riven, enemy, undefined, pos));
+    if (s > best) best = s;
+  }
+  return best;
+}
+
+/**
  * The best riven this weapon can roll, evaluated on a fixed mod build.
  * Values are true max rolls (W = 1.1) with the game's attenuation tables.
  */
@@ -98,7 +112,7 @@ export function solveGodRiven(weapon: WeaponPanel, rivenWeapon: Weapon, fixedMod
   if (posDefs.length < 2) return null;
   const negDefs = pool.neg.map((t) => byTag.get(t)).filter((d): d is StatDef => !!d);
 
-  const score = (parts: Array<RivenStat | null>): number => scoreResult(computeBuild(weapon, fixedMods, rivenOf(parts), enemy));
+  const score = (parts: Array<RivenStat | null>): number => bestOverSlots(weapon, fixedMods, rivenOf(parts), enemy);
 
   // 1) rank positives greedily at 3+1 magnitudes (the order holds for every
   //    layout: each layout scales all positives by the same factor). A riven
@@ -203,7 +217,7 @@ function wantedStat(def: StatDef, row: WantedRow, layout: Layout): RivenStat | n
  */
 function expectedOfSet(cls: RivenClass, rows: WantedRow[], spec: WantedSpec, weapon: WeaponPanel, fixedMods: ModCard[], enemy: EnemyContext | null): GodRiven | null {
   const byTag = new Map(statsOf(cls).map((d) => [d.tag, d]));
-  const score = (parts: Array<RivenStat | null>): number => scoreResult(computeBuild(weapon, fixedMods, rivenOf(parts), enemy));
+  const score = (parts: Array<RivenStat | null>): number => bestOverSlots(weapon, fixedMods, rivenOf(parts), enemy);
 
   // 1) the best stat per row, ranked at 3+1 magnitudes (the order is layout-invariant)
   const ranked: Array<{ stat: RivenStat; row: WantedRow }> = [];
@@ -302,7 +316,7 @@ export function expectedRiven(cls: RivenClass, spec: WantedSpec, weapon: WeaponP
     if (!rows.length) continue;
     const cand = expectedOfSet(cls, rows, spec, weapon, fixedMods, enemy);
     if (!cand?.riven) continue;
-    const s = scoreResult(computeBuild(weapon, fixedMods, cand.riven, enemy));
+    const s = bestOverSlots(weapon, fixedMods, cand.riven, enemy);
     if (s > bestScore * (1 + 1e-9) + 1e-9) {
       bestScore = s;
       best = cand;
@@ -348,14 +362,14 @@ export function threeTier(req: {
 }
 
 /** per-stat marginals of a riven on a fixed mod build (loss < 0 = the stat hurts) */
-export function statMarginals(weapon: WeaponPanel, mods: ModCard[], riven: RivenContribution, enemy?: EnemyContext | null): StatMarginal[] {
-  const full = scoreResult(computeBuild(weapon, mods, riven, enemy ?? null));
+export function statMarginals(weapon: WeaponPanel, mods: ModCard[], riven: RivenContribution, enemy?: EnemyContext | null, rivenSlot = 1): StatMarginal[] {
+  const full = scoreResult(computeBuild(weapon, mods, riven, enemy ?? null, undefined, rivenSlot));
   return (Object.entries(riven.stats) as Array<[StatKey, number]>)
     .filter(([, v]) => v)
     .map(([stat]) => {
       const rest = { ...riven.stats };
       delete rest[stat];
-      const loss = full - scoreResult(computeBuild(weapon, mods, { stats: rest }, enemy ?? null));
+      const loss = full - scoreResult(computeBuild(weapon, mods, { stats: rest }, enemy ?? null, undefined, rivenSlot));
       return { stat, loss, pct: full > 0 ? loss / full : 0 };
     });
 }

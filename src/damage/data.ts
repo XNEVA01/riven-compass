@@ -317,9 +317,11 @@ export const ENEMIES: EnemySpec[] = [
   },
 ];
 
-/** DE riven stat tag -> engine semantic key (gun subset) */
+/** DE riven stat tag -> engine semantic key (gun + melee light-attack subset) */
 export const RIVEN_TAG_TO_KEY: Record<string, StatKey> = {
   WeaponDamageAmountMod: "dmg",
+  // 近战基伤（紫卡）
+  WeaponMeleeDamageMod: "dmg",
   WeaponFireIterationsMod: "ms",
   WeaponCritChanceMod: "cc",
   WeaponCritDamageMod: "cd",
@@ -346,6 +348,10 @@ export const RIVEN_TAG_TO_KEY: Record<string, StatKey> = {
   WeaponFactionDamageCorpus: "facCorpus",
   WeaponFactionDamageInfested: "facInfested",
   WeaponFactionDamageOrokin: "facOrokin",
+  // 近战紫卡的阵营词条（与枪械分开的 tag）
+  WeaponMeleeFactionDamageGrineer: "facGrineer",
+  WeaponMeleeFactionDamageCorpus: "facCorpus",
+  WeaponMeleeFactionDamageInfested: "facInfested",
   WeaponPunctureDepthMod: "pt",
 };
 

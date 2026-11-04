@@ -122,7 +122,7 @@ describe("元素合成顺序：引擎 vs Wiki 参考实现（全武器）", () =
     expect(cases).toBe(weapons.length * 40);
   });
 
-  it("近战/Archgun 等未收录武器不在计算器里（武器表只有枪械）", () => {
-    for (const w of weapons) expect(["rifle", "shotgun", "pistol"]).toContain(w.compat);
+  it("计算器只收录枪械与近战（Archgun/Kitgun/Zaw 暂未收录）", () => {
+    for (const w of weapons) expect(["rifle", "shotgun", "pistol", "melee"]).toContain(w.compat);
   });
 });

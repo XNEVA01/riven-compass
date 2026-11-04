@@ -32,7 +32,7 @@ export interface WeaponPanel {
   id: string;
   en: string;
   zh: string;
-  compat: "rifle" | "shotgun" | "pistol";
+  compat: "rifle" | "shotgun" | "pistol" | "melee";
   dmg: Partial<Record<DamageTypeKey, number>>;
   total: number;
   cc: number;
@@ -53,6 +53,12 @@ export interface WeaponPanel {
   fixedMag?: boolean;
   /** game.json 名录的武器类别（同族版本一致，用于家族归组） */
   cls?: string;
+  /** 近战（第一期只算平砍）：攻击范围、连击时长、重击/震地/滑砍伤害，供后续连击模型使用 */
+  attackRange?: number;
+  comboDuration?: number;
+  heavyAttack?: number;
+  slamAttack?: number;
+  slideAttack?: number;
 }
 
 /** 灵化形态面板替换：伤害/暴击/射速换成形态值，ms=固有光束数，弹匣固定 */
@@ -79,7 +85,7 @@ export interface ModCard {
   id: string;
   zh: string;
   en: string;
-  compat: "rifle" | "shotgun" | "pistol";
+  compat: "rifle" | "shotgun" | "pistol" | "melee";
   polarity?: string;
   drain?: number;
   rank?: number;

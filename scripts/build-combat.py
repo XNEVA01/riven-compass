@@ -39,12 +39,17 @@ DT = r"(?:<DT_[A-Z_]+_COLOR>)?"
 
 STAT_RULES: list[tuple[str, str, re.Pattern]] = [
     ("dmg", "base damage", re.compile(rf"^([+-]?[\d.]+)% Damage$")),
+    # 近战基伤（压迫点系列）："+80% Melee Damage"
+    ("dmg", "melee damage", re.compile(r"^([+-]?[\d.]+)% Melee Damage$")),
     ("ms", "multishot", re.compile(r"^([+-]?[\d.]+)% Multishot$")),
     ("sc", "status chance", re.compile(r"^([+-]?[\d.]+)% Status Chance$")),
-    ("cc", "critical chance", re.compile(r"^([+-]?[\d.]+)% Critical Chance$")),
+    # 近战暴击卡会带 "(x2 for Heavy Attacks)"：第一期按平砍口径取基础值
+    ("cc", "critical chance", re.compile(r"^([+-]?[\d.]+)% Critical Chance(?: \(x2 for Heavy Attacks\))?$")),
     ("cd", "critical damage", re.compile(r"^([+-]?[\d.]+)% Critical Damage$")),
     # fire rate: bows use the doubled value on their native charge model; v1 treats all as flat
     ("fr", "fire rate", re.compile(r"^([+-]?[\d.]+)% Fire Rate(?: \(x[\d.]+ for Bows\))?$")),
+    # 近战攻速（狂怒系列）
+    ("fr", "attack speed", re.compile(r"^([+-]?[\d.]+)% Attack Speed$")),
     ("mag", "magazine", re.compile(r"^([+-]?[\d.]+)% Magazine Capacity$")),
     ("rl", "reload", re.compile(r"^([+-]?[\d.]+)% Reload Speed$")),
     ("pt", "punch through", re.compile(r"^([+-]?[\d.]+) Punch Through$")),
@@ -88,7 +93,7 @@ REJECT_MARKERS = (
     "Orbs", "Minimap", "Reveals", "Reduces the chance", "Ammo Pick",
     "Status Duration", "Ammo Maximum", "Projectile Speed", "Accuracy",
     "Recoil", "Zoom", "Blast Range", "Movement Speed", "Melee",
-    "Initial Combo", "Combo Count", "Combo Duration", "Heavy Attack",
+    "Initial Combo", "Combo Count", "Combo Duration", "Combo Multiplier", "COMBO COUNT", "Heavy Attack",
     "Range", "Slam Attack", "Life Steal", "Chance to", "per Status",
     "Damage Over", "Damage Reflection", "Ice Status", "Electric Status",
 )
@@ -118,7 +123,7 @@ WEAPON_COMPAT = {
 COMPANION_CLS_COMPAT = {
     "Rifle": "rifle", "Shotgun": "shotgun", "Pistol": "pistol", "Melee": "rifle",
 }
-MOD_COMPAT_NORM = {"Rifle": "rifle", "Shotgun": "shotgun", "Pistol": "pistol"}
+MOD_COMPAT_NORM = {"Rifle": "rifle", "Shotgun": "shotgun", "Pistol": "pistol", "Melee": "melee"}
 # DE variant suffixes in uniqueName: tutorial tiers + unobtainable Expert cards
 VARIANT_RX = re.compile(r"(Beginner|Intermediate|Expert|Advanced|Hard|Easy)$")
 DAMAGE_TYPES = (
@@ -128,10 +133,13 @@ DAMAGE_TYPES = (
 
 
 def parse_stat(text: str) -> tuple[str, float] | tuple[str, None]:
-    """Parse one top-rank stat line -> (semantic_key, value) or (key, None) if rejected."""
+    """Parse one top-rank stat line -> (semantic_key, value) or (key, None) if rejected.
+
+    先试词条规则再查条件黑名单：近战卡的文字里常带 "Melee" / "Heavy Attacks"
+    这类字样（"+80% Melee Damage"、"+80% Critical Chance (x2 for Heavy Attacks)"），
+    若先按黑名单过滤会被整张误杀。
+    """
     clean = text.replace("*", "").strip()
-    if any(m in clean for m in REJECT_MARKERS):
-        return "", None
     fac = _parse_fac(clean)
     if fac:
         return fac
@@ -139,6 +147,8 @@ def parse_stat(text: str) -> tuple[str, float] | tuple[str, None]:
         m = rx.match(clean)
         if m:
             return key, float(m.group(1)) / 100.0
+    if any(m in clean for m in REJECT_MARKERS):
+        return "", None
     return "", None
 
 
@@ -239,6 +249,7 @@ def load_from_tgz(tgz: Path) -> dict[str, dict]:
         "package/data/json/Primary.json": "primary",
         "package/data/json/Secondary.json": "secondary",
         "package/data/json/SentinelWeapons.json": "sentinel",
+        "package/data/json/Melee.json": "melee",
         "package/data/json/Mods.json": "mods",
         "package/data/json/i18n/zh.json": "zh",
         "package/package.json": "pkg",
@@ -261,7 +272,7 @@ def load_from_dir(src_dir: Path) -> dict[str, dict]:
     out: dict[str, dict] = {}
     for name, key in [
         ("Primary.json", "primary"), ("Secondary.json", "secondary"),
-        ("SentinelWeapons.json", "sentinel"),
+        ("SentinelWeapons.json", "sentinel"), ("Melee.json", "melee"),
         ("Mods.json", "mods"), ("zh.json", "zh"),
     ]:
         p = d / name if name != "zh.json" else d / "i18n" / "zh.json"
@@ -364,6 +375,9 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
         compat = MOD_COMPAT_NORM.get(m.get("compatName", ""))
         if not compat or m.get("isAugment") or m.get("isExilus") or m.get("conclave"):
             continue
+        # 部分版本 wfcd 不再给 conclave 标记，PvP 卡只能从 uniqueName 认出来
+        if "/PvPMods/" in (m.get("uniqueName") or ""):
+            continue
         if m.get("category") == "Mods" and "Riven" in (m.get("type") or ""):
             continue
         ls = m.get("levelStats") or []
@@ -425,16 +439,55 @@ def build(items: dict, game_path: Path, out_path: Path, include_melees: bool) ->
     for e in mods_out:
         e.pop("variant", None)
 
-    # ---- melee: v1.5 flag (panels only extraction when requested) ----
+    # ---- melee (第一期：平砍口径) ----
+    # 面板只取平砍：伤害构成、暴击/触发、攻击速度；无弹匣/装填（引擎按 null 处理）。
+    # 连击、重击、架势倍率属于第二期，暂不入库。
     if include_melees:
         for w in items.get("melee", []):
-            pass  # v1.5: melee attack model, not covered yet
+            uid = w.get("uniqueName")
+            if uid not in roster or uid in panel:
+                continue
+            if roster[uid].get("cls") != "Melee":
+                continue  # Zaw 是组件拼装（Melee.json 里只有占位面板），第一期不收录
+            dmg_obj = w.get("damage") or {}
+            dmg = {k: round(v, 4) for k, v in dmg_obj.items()
+                   if k in DAMAGE_TYPES and v and v > 0}
+            if not dmg:
+                continue
+            total = round(w.get("totalDamage") or sum(dmg.values()), 3)
+            # Zaw 组件在 Melee.json 里是未初始化的占位面板（负的 1e14 量级），不是成品武器
+            if not (0 < total < 1e6) or not (w.get("fireRate") or 0) > 0:
+                continue
+            panel[uid] = {
+                "id": uid,
+                "zh": roster[uid]["name"]["zh"],
+                "en": w["name"],
+                "compat": "melee",
+                "dmg": dmg,
+                "total": total,
+                "cc": w.get("criticalChance"),
+                "cd": w.get("criticalMultiplier"),
+                "sc": w.get("procChance"),
+                "fr": w.get("fireRate"),
+                "mag": None,
+                "rl": None,
+                "ms": 1,
+                "omega": w.get("omegaAttenuation"),
+                "attackRange": w.get("range"),
+                "comboDuration": w.get("comboDuration"),
+                "heavyAttack": w.get("heavyAttackDamage"),
+                "slamAttack": w.get("slamAttack"),
+                "slideAttack": w.get("slideAttack"),
+                "cls": roster[uid]["cls"],
+                "ips": roster[uid].get("ips"),
+                "tags": roster[uid].get("tags"),
+            }
 
     combat = {
         "meta": {
             "built": date.today().isoformat(),
             "source": f"@wfcd/items@{version} (MIT)",
-            "scope": "guns v1 (primary+secondary+companion), damage-mod subset",
+            "scope": "guns + melee light attacks (v1), damage-mod subset",
         },
         "weapons": list(panel.values()),
         "mods": mods_out,
@@ -456,7 +509,7 @@ def main() -> None:
     ap.add_argument("-o", "--out", type=Path, default=ROOT / "src/data/combat.json")
     a = ap.parse_args()
     items = load_from_tgz(a.tgz) if a.tgz else load_from_dir(a.dir)
-    build(items, a.game, a.out, include_melees=False)
+    build(items, a.game, a.out, include_melees=True)
 
 
 if __name__ == "__main__":

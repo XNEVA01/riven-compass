@@ -26,6 +26,7 @@ import { formatDisplay } from "../engine/formula";
 import type { CardDraft, Session } from "../state";
 import { complete, minW, statName, weaponClass, weaponName } from "../state";
 import { NumberField, Segmented } from "./controls";
+import { WeaponImage } from "./icons";
 
 interface Strings {
   needWeapon: string;
@@ -220,6 +221,8 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     if (!weapon) return null;
     return (variantId && family.find((x) => x.id === variantId)) || weapon;
   }, [weapon, family, variantId]);
+  /** 名册里的当前版本（取武器图用；同族切换时跟着变） */
+  const rosterSelected = useMemo(() => (selected ? weaponById(selected.id) : undefined), [selected]);
   /** 计算用面板：灵化形态 = 形态值替换（多重基数=固有光束数，弹匣固定） */
   const activeWeapon = useMemo(() => (selected && form === "incarnon" && selected.incarnon ? incarnonPanel(selected) : selected), [selected, form]);
   const pool = useMemo(() => (selected ? allMods.filter((m) => m.compat === selected.compat && (!m.trigger || m.trigger === selected.trigger)) : []), [selected]);
@@ -365,6 +368,9 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
             <div className="panel-h">
               <h2>{name}</h2>
             </div>
+            <div className="weapon">
+              <WeaponImage weapon={rosterWeapon} />
+            </div>
             <div className="build-riven">
               <p className="muted small">{t.riven}</p>
               {riven ? (
@@ -501,9 +507,12 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
           <div className="panel-h">
             <h2>{selected.id !== weapon.id ? (lang === "en" ? selected.en : selected.zh) : weaponName(session.weaponId, lang)}</h2>
           </div>
-          <p className="muted small">
-            {num(activeWeapon.total)} · CC {pct(activeWeapon.cc)} / CD x{activeWeapon.cd} / SC {pct(activeWeapon.sc)}
-          </p>
+          <div className="weapon">
+            <WeaponImage weapon={rosterSelected} />
+            <p className="muted small">
+              {num(activeWeapon.total)} · CC {pct(activeWeapon.cc)} / CD x{activeWeapon.cd} / SC {pct(activeWeapon.sc)}
+            </p>
+          </div>
           {family.length > 1 && (
             <div className="build-switch">
               <span className="muted small">{t.variants}</span>

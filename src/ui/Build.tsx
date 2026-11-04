@@ -29,6 +29,10 @@ import { NumberField, Segmented } from "./controls";
 
 interface Strings {
   needWeapon: string;
+  /** 名册里有该武器、但伤害计算没收录（近战/Archgun/Kitgun/Zaw）：|W| = 武器名 */
+  unsupported: string;
+  /** 计算口径免责：本页数值为计算值 */
+  calcNote: string;
   riven: string;
   noRiven: string;
   enemy: string;
@@ -201,6 +205,8 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   const [form, setForm] = useState<"base" | "incarnon">("base");
 
   const weapon = useMemo(() => (session.weaponId ? (weapons.find((w) => w.id === session.weaponId) ?? null) : null), [session.weaponId]);
+  /** 名册（game.json）里的武器：即使伤害计算没收录，也能显示名字与紫卡 */
+  const rosterWeapon = useMemo(() => (session.weaponId ? weaponById(session.weaponId) : undefined), [session.weaponId]);
   const cls = weaponClass(session.weaponId);
   const riven = useMemo(() => rivenFromCard(session.card), [session.card]);
   /** 同族武器（普通/Prime/集团/亡魂等）：紫卡通用，面板可切换 */
@@ -339,12 +345,56 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     return rows;
   }, [statMargins, cls, session.card]);
 
-  if (!weapon || !cls || !selected || !activeWeapon) {
+  if (!rosterWeapon || !cls) {
     return (
       <main className="coach">
         <section className="panel">
           <p className="empty">{t.needWeapon}</p>
         </section>
+      </main>
+    );
+  }
+
+  // 名册有这把武器、但伤害计算没收录（近战 / Archgun / Kitgun / Zaw）：显示武器与紫卡，并说明原因
+  if (!weapon || !selected || !activeWeapon) {
+    const name = weaponName(session.weaponId, lang);
+    return (
+      <main className="coach">
+        <div className="col-left">
+          <section className="panel">
+            <div className="panel-h">
+              <h2>{name}</h2>
+            </div>
+            <div className="build-riven">
+              <p className="muted small">{t.riven}</p>
+              {riven ? (
+                <ul className="build-traits">
+                  {session.card.pos.map((tr, i) => (
+                    <li key={tr.tag || i}>
+                      {statName(cls, tr.tag, lang)} <b>{formatDisplay(statOf(cls, tr.tag), tr.shown ?? 0)}</b>
+                    </li>
+                  ))}
+                  {session.card.neg && (
+                    <li className="neg">
+                      {statName(cls, session.card.neg.tag, lang)} <b>{formatDisplay(statOf(cls, session.card.neg.tag), session.card.neg.shown ?? 0)}</b>
+                    </li>
+                  )}
+                </ul>
+              ) : (
+                <p className="empty good">{t.noRiven}</p>
+              )}
+            </div>
+          </section>
+        </div>
+        <div className="col-right">
+          <section className="panel">
+            <div className="panel-h">
+              <h2>{t.panel}</h2>
+            </div>
+            <p className="empty">{t.unsupported.replace("|W|", name)}</p>
+            <p className="muted small">{t.calcNote}</p>
+          </section>
+        </div>
       </main>
     );
   }
@@ -751,6 +801,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                 ))}
               </ul>
               <p className="muted small">{t.panelNote}</p>
+              <p className="muted small">{t.calcNote}</p>
               {vs && (
                 <ul className="build-vs">
                   <li>

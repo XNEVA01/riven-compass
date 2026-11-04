@@ -128,6 +128,8 @@ export function strings(l: Lang) {
       theme: { label: "Theme", auto: "follow the system", light: "light", dark: "dark" },
       build: {
         needWeapon: "Choose a weapon on the Coach page first.",
+        unsupported: "“|W|” has no damage data yet: the calculator covers primary, secondary and sentinel weapons. Riven planning still works on the Coach page.",
+        calcNote: "Damage here is calculated: exact values in game may differ.",
         riven: "Riven (read from the Coach page)",
         noRiven: "No riven recorded: bare-weapon math.",
         enemy: "Enemy",
@@ -508,6 +510,8 @@ export function strings(l: Lang) {
       theme: { label: "主題", auto: "跟隨系統", light: "淺色", dark: "深色" },
       build: {
         needWeapon: "先在「助手」頁選一把武器。",
+        unsupported: "「|W|」暫無傷害計算資料：目前僅支援主武器、副武器與守護武器；洗卡規劃仍可在助手頁使用。",
+        calcNote: "本頁傷害為計算結果，實際數值以遊戲內為準。",
         riven: "紫卡（讀取助手頁）",
         noRiven: "未錄卡：按裸武器計算。",
         enemy: "敵人",
@@ -886,6 +890,8 @@ export function strings(l: Lang) {
     theme: { label: "主题", auto: "跟随系统", light: "浅色", dark: "深色" },
     build: {
       needWeapon: "先在「助手」页选一把武器。",
+      unsupported: "「|W|」暂无伤害计算数据：目前仅支持主武器、副武器与守护武器；洗卡规划仍可在助手页使用。",
+      calcNote: "本页伤害为计算结果，具体数值以游戏内为准。",
       riven: "紫卡（读自助手页）",
       noRiven: "未录卡：按裸武器计算。",
       enemy: "敌人",

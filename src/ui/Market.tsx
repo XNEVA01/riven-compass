@@ -17,10 +17,9 @@ import { Segmented } from "./controls";
 
 interface Strings {
   title: string;
-  /** 展示页式页面头：栏目名 / 一句话主张 / 用途 / 数据来源徽章 */
+  /** 展示页式页面头：栏目名 / 一句话主张 / 数据来源徽章 */
   eyebrow: string;
   headline: string;
-  purpose: string;
   badge: string;
   source: string;
   loading: string;
@@ -87,15 +86,14 @@ export function Market({
   onCombo: (id: string, combo: MarketCombo) => void;
 }) {
   const t = s.market;
-  /** 五个页面共用的展示页式页头：栏目标签 + 主张 + 用途，右侧一枚数据来源徽章 */
-  const hero = (
+  /** 展示页式页面头：栏目标签 + 主张，右侧一枚徽章（有数据时带上快照日期与时刻） */
+  const hero = (badge: string) => (
     <header className="page-hero">
       <div>
         <span className="eyebrow">{t.eyebrow}</span>
         <h1>{t.headline}</h1>
-        <p>{t.purpose}</p>
       </div>
-      <span className="badge">{t.badge}</span>
+      <span className="badge">{badge}</span>
     </header>
   );
   const [load, setLoad] = useState<Load>({ kind: "loading" });
@@ -185,7 +183,7 @@ export function Market({
   if (load.kind === "loading") {
     return (
       <main className="market">
-        {hero}
+        {hero(t.badge)}
         <section className="panel" role="status" aria-label={t.loading}>
           {/* 骨架屏（P0-5）：首次访问无缓存时也有一块稳定结构，不是一句干巴巴的文案 */}
           <div className="market-skeleton" aria-hidden="true">
@@ -201,7 +199,7 @@ export function Market({
   if (load.kind === "error") {
     return (
       <main className="market">
-        {hero}
+        {hero(t.badge)}
         <section className="panel">
           <p className="empty">{t.error}</p>
           <p>
@@ -223,16 +221,30 @@ export function Market({
   const fresh = age < 48 ? t.freshHours.replace("|H|", String(Math.max(1, Math.round(age)))) : t.freshDays.replace("|D|", String(Math.round(age / 24)));
   // 绝对时间：相对「几小时前」不够，玩家要能对上自己的时间（每日快照，不是实时行情）
   const stamp = new Date(m.meta.generated_at);
-  const snapText = Number.isNaN(stamp.getTime())
-    ? m.meta.generated_at
-    : stamp.toLocaleString(lang === "en" ? "en-GB" : lang === "tc" ? "zh-TW" : "zh-CN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZoneName: "short",
-      });
+  // 逐段取再拼：zh-CN 的 toLocaleString 会把时区塞在日期和时刻中间（2026/11/04 GMT+8 09:03）
+  const snapParts = Number.isNaN(stamp.getTime())
+    ? null
+    : Object.fromEntries(
+        new Intl.DateTimeFormat(lang === "en" ? "en-GB" : lang === "tc" ? "zh-TW" : "zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZoneName: "short",
+        })
+          .formatToParts(stamp)
+          .map((p) => [p.type, p.value]),
+      );
+  const snapText = snapParts
+    ? `${snapParts.year}/${snapParts.month}/${snapParts.day} ${snapParts.hour}:${snapParts.minute} ${snapParts.timeZoneName ?? ""}`.trim()
+    : m.meta.generated_at;
+  // 徽章上写明「哪天的几点」：本地时刻，时区与年份在下方快照行里给全
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const snapBadge = Number.isNaN(stamp.getTime())
+    ? t.badge
+    : `${t.badge} · ${pad(stamp.getMonth() + 1)}-${pad(stamp.getDate())} ${pad(stamp.getHours())}:${pad(stamp.getMinutes())}`;
 
   const sortOptions = (
     [
@@ -247,15 +259,15 @@ export function Market({
 
   return (
     <main className="market">
-      {hero}
+      {hero(snapBadge)}
       <section className="panel market-panel">
         <div className="panel-h">
           <h2>{t.title}</h2>
           <span className="subtle">{t.source}</span>
         </div>
         <p className="muted small market-meta">
-          {fresh}
-          {load.cachedAt != null ? ` · ${t.updating}` : ""} · {t.snapshot.replace("|T|", snapText)}
+          {t.snapshot.replace("|T|", snapText)} · {fresh}
+          {load.cachedAt != null ? ` · ${t.updating}` : ""}
         </p>
         <div className="market-toolbar">
           <input className="market-q" type="search" placeholder={t.search} value={q} aria-label={t.search} onChange={(e) => setQ(e.target.value)} />

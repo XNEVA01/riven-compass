@@ -80,8 +80,7 @@ export function strings(l: Lang) {
         title: "Riven market",
         eyebrow: "MARKET / PRICES",
         headline: "Filter first, compare second.",
-        purpose: "Price, supply and turnover on one line — with a clear way out when nothing matches.",
-        badge: "warframe.market · daily snapshot",
+        badge: "Daily snapshot",
         source: "Listings from warframe.market · refreshed daily",
         loading: "Loading market data…",
         error: "Market data could not be loaded.",
@@ -109,7 +108,7 @@ export function strings(l: Lang) {
         /** 首屏渲染上次缓存数据时，新鲜度行旁的提示 */
         updating: "updating in the background…",
         /** 每日快照的绝对时间（|T| 为本地时间与时区） */
-        snapshot: "Daily snapshot · data from |T|",
+        snapshot: "Snapshot taken |T|",
         empty: "No weapon matches these filters.",
         clear: "Clear filters",
         more: "Show 60 more (|N| left)",
@@ -507,8 +506,7 @@ export function strings(l: Lang) {
         title: "紫卡行情",
         eyebrow: "MARKET / 行情",
         headline: "先篩選，再比較。",
-        purpose: "價格、在架量與週轉放在同一行；沒有結果時給明確出口。",
-        badge: "warframe.market · 每日快照",
+        badge: "每日快照",
         source: "掛單資料來自 warframe.market · 每日更新",
         loading: "正在載入行情資料…",
         error: "行情資料載入失敗。",
@@ -536,7 +534,7 @@ export function strings(l: Lang) {
         /** 首屏渲染上次快取資料時，新鮮度行旁的提示 */
         updating: "正在背景更新…",
         /** 每日快照的絕對時間（|T| 為本地時間與時區） */
-        snapshot: "每日快照 · 資料時間 |T|",
+        snapshot: "快照時間 |T|",
         empty: "沒有找到符合條件的武器。",
         clear: "清除篩選",
         more: "再顯示 60 把（還有 |N| 把）",
@@ -926,8 +924,7 @@ export function strings(l: Lang) {
       title: "紫卡行情",
       eyebrow: "MARKET / 行情",
       headline: "先筛选，再比较。",
-      purpose: "价格、在架量与周转放在同一行；没有结果时给明确出口。",
-      badge: "warframe.market · 每日快照",
+      badge: "每日快照",
       source: "挂单数据来自 warframe.market · 每日更新",
       loading: "正在载入行情数据…",
       error: "行情数据载入失败。",
@@ -955,7 +952,7 @@ export function strings(l: Lang) {
       /** 首屏渲染上次缓存数据时，新鲜度行旁的提示 */
       updating: "正在后台更新…",
       /** 每日快照的绝对时间（|T| 为本地时间与时区） */
-      snapshot: "每日快照 · 数据时间 |T|",
+      snapshot: "快照时间 |T|",
       empty: "没有找到符合条件的武器。",
       clear: "清除筛选",
       more: "再显示 60 把（还有 |N| 把）",

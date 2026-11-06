@@ -28,6 +28,16 @@ const request: PlanRequest = {
 
 afterEach(() => vi.restoreAllMocks());
 
+it("同一 seed 在不同 planner 上给出相同的分位数（刷新不漂移）", () => {
+  // 两个 planner 的兜底 rng 不同：结果只可能来自请求里的种子
+  const a = new Planner(() => 0.1).plan({ ...request, id: 10, seed: 12345, runs: 200 });
+  const b = new Planner(() => 0.9).plan({ ...request, id: 11, seed: 12345, runs: 200 });
+  if (!a.ok || !b.ok) throw new Error("plan failed");
+  expect(a.routes.map((r) => r.kuva)).toEqual(b.routes.map((r) => r.kuva));
+  expect(a.routes.map((r) => r.cycles)).toEqual(b.routes.map((r) => r.cycles));
+  expect(a.routes.map((r) => r.withinBudget)).toEqual(b.routes.map((r) => r.withinBudget));
+});
+
 it("changes budget without rerunning the graph or resampling its distributions", () => {
   const solve = vi.spyOn(Solver.prototype, "solve");
   const simulate = vi.spyOn(Solver.prototype, "simulate");

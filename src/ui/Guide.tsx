@@ -65,6 +65,7 @@ export function Guide({ lang }: { lang: Lang }) {
   if (lang === "en")
     return (
       <article className="article">
+        <h1>How it works</h1>
         <h2>
           <RivenMark size={26} />
           Roll
@@ -145,6 +146,7 @@ export function Guide({ lang }: { lang: Lang }) {
   if (lang === "tc")
     return (
       <article className="article">
+        <h1>機制說明</h1>
         <h2>
           <RivenMark size={26} />
           浮動係數
@@ -213,6 +215,7 @@ export function Guide({ lang }: { lang: Lang }) {
 
   return (
     <article className="article">
+      <h1>机制说明</h1>
       <h2>
         <RivenMark size={26} />
         浮动系数

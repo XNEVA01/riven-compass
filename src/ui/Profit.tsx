@@ -66,6 +66,8 @@ export function Profit({ s, lang, cls, weaponEn, target, routes, kuva }: Props) 
     }
   }, [wage]);
 
+  // 0 机会成本会让「自己洗」在数学上永远划算：这时不下结论，先请玩家填真实时薪（P1）
+  const zeroWage = wage.platPerHour === 0;
   // 洗卡成本取求解器推荐路线（玩家实际会跟的那条）
   const route = routes.find((r) => r.route.optimal) ?? routes[0];
   const cost = route ? costPlat(route.kuva.mean, wage) : Number.POSITIVE_INFINITY;
@@ -96,7 +98,7 @@ export function Profit({ s, lang, cls, weaponEn, target, routes, kuva }: Props) 
         </p>
       )}
       {/* 期望成本不依赖行情：即使该武器无在架挂单，洗卡要花多少仍然成立 */}
-      {load.kind === "ok" && route && (
+      {load.kind === "ok" && route && !zeroWage && (
         <p className="profit-cost">
           {t.cost} <b>{fmtPlat(cost)}</b> <small>{t.platUnit}</small>
           <small>
@@ -133,15 +135,17 @@ export function Profit({ s, lang, cls, weaponEn, target, routes, kuva }: Props) 
                   <span className="combo-meta">
                     {s.market.perListing.replace("|N|", num(c.count))} · {s.market.median} {num(c.median_price)}
                   </span>
-                  <span className={`profit-num${profit >= 0 ? " up" : " down"}`} title={t.est}>
-                    {profit >= 0 ? "+" : "−"}
-                    {fmtPlat(Math.abs(profit))}
-                  </span>
+                  {!zeroWage && (
+                    <span className={`profit-num${profit >= 0 ? " up" : " down"}`} title={t.est}>
+                      {profit >= 0 ? "+" : "−"}
+                      {fmtPlat(Math.abs(profit))}
+                    </span>
+                  )}
                 </li>
               );
             })}
           </ul>
-          {bestProfit != null && (
+          {bestProfit != null && !zeroWage && (
             <p className={bestProfit > 0 ? "profit-verdict good" : "profit-verdict warn"}>{bestProfit > 0 ? t.save.replace("|P|", fmtPlat(bestProfit)) : t.buy}</p>
           )}
         </>
@@ -156,9 +160,14 @@ export function Profit({ s, lang, cls, weaponEn, target, routes, kuva }: Props) 
           <input type="number" min={0} inputMode="numeric" value={platW} aria-label={t.platWage} onChange={(e) => setPlatW(e.target.value)} />
         </label>
       </div>
+      {zeroWage && (
+        <p className="profit-verdict warn" role="status">
+          {t.wageZero}
+        </p>
+      )}
       <p className="muted small profit-formula">{t.formula}</p>
       {/* 公式底下代入当前数值：期望赤毒与用户时薪实时换算，一眼看懂成本怎么来的 */}
-      {route && (
+      {route && !zeroWage && (
         <p className="muted small profit-formula">
           {t.formulaCalc.replace("|K|", num(route.kuva.mean)).replace("|KW|", num(wage.kuvaPerHour)).replace("|PW|", num(wage.platPerHour)).replace("|C|", fmtPlat(cost))}
         </p>

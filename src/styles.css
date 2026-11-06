@@ -1,112 +1,76 @@
-/* void & gold — temple edition: a full rebuild on the same DOM. every panel a stele, every button gilded. */
-@import "@fontsource/noto-serif-sc/700.css";
-@import "@fontsource/noto-serif-sc/900.css";
-@import "@fontsource/newsreader/400.css";
-@import "@fontsource/newsreader/500.css";
-@import "@fontsource/newsreader/600.css";
+/* console edition: high-contrast void panels with violet and gold, after the redesign showcase */
 
-/* tokens: day is ivory marble under a gilded lintel; night is the void with a gilded light on it */
+/* tokens: the console is dark by default; light is an explicit choice */
 :root {
-  --paper: #f2ecdf;
-  --sheet: #faf6ec;
-  --well: #e9e0ca;
-  --ink: #221a30;
-  --ink-2: #4d4260;
-  --ink-3: #7a6f85;
-  --rule: #d6c9ac;
-  --seal: #8a5a0a;
-  --seal-soft: rgba(138, 90, 10, 0.08);
-  --seal-tint: rgba(138, 90, 10, 0.16);
-  --hi: #0a6b59;
-  --ink-hover: #3a2f47;
-  --overlay: rgba(242, 236, 223, 0.9);
-  --weapon-shadow: drop-shadow(0 2px 3px rgba(34, 26, 48, 0.25));
-  --icon-rim: none;
-  --raised: var(--sheet);
-  --raised-shadow: 0 1px 2px rgba(34, 26, 48, 0.15);
-  --switch-off: var(--rule);
-  --knob: var(--sheet);
-  --frame: rgba(138, 90, 10, 0.3);
-  --gold-grad: linear-gradient(180deg, #eccd7d, #bd8c2f);
-  --gold-grad-hi: linear-gradient(180deg, #f5dda0, #cc9a3a);
-  --paper-glow:
-    radial-gradient(1100px 460px at 50% -120px, rgba(190, 140, 40, 0.08), transparent 65%), radial-gradient(900px 540px at 108% -60px, rgba(120, 90, 200, 0.05), transparent 60%);
-  --vignette: radial-gradient(140% 130% at 50% 40%, transparent 58%, rgba(66, 46, 12, 0.08));
-  --serif: "Noto Serif SC", "Songti SC", "STSong", serif;
-  --num: "Newsreader", "Noto Serif SC", serif;
-  --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
-  --shadow: 0 14px 36px rgba(34, 26, 48, 0.18), 0 2px 6px rgba(34, 26, 48, 0.08);
-  color-scheme: light;
+  --paper: #0b1020;
+  --sheet: #151c31;
+  --well: #1b2540;
+  --ink: #f4f5ff;
+  --ink-2: #aeb9d0;
+  --ink-3: #828fae;
+  --rule: #303b57;
+  --seal: #b6a5ff;
+  --seal-soft: rgba(182, 165, 255, 0.1);
+  --seal-tint: rgba(182, 165, 255, 0.18);
+  --hi: #73dac8;
+  --ink-hover: #ffffff;
+  --overlay: rgba(11, 16, 32, 0.92);
+  --weapon-shadow: drop-shadow(0 2px 4px rgba(2, 6, 17, 0.55));
+  --icon-rim: drop-shadow(0 0 1px rgba(244, 245, 255, 0.45));
+  --raised: #1b2540;
+  --raised-shadow: 0 1px 3px rgba(2, 6, 17, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --switch-off: #2a3350;
+  --knob: #ece1c8;
+  --frame: rgba(182, 165, 255, 0.18);
+  --gold: #f1c77e;
+  --danger: #ff9fa4;
+  --gold-grad: linear-gradient(135deg, #d3bdff, #9f8af4);
+  --gold-grad-hi: linear-gradient(135deg, #e6d8ff, #b3a0ff);
+  --paper-glow: radial-gradient(circle at 88% -12%, rgba(80, 69, 121, 0.42), transparent 31rem), radial-gradient(circle at -9% 32%, rgba(20, 61, 81, 0.32), transparent 35rem);
+  --vignette: radial-gradient(140% 130% at 50% 40%, transparent 60%, rgba(2, 6, 17, 0.36));
+  --serif: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --num: "Inter", "Noto Sans SC", system-ui, sans-serif;
+  --sans: "Inter", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --shadow: 0 22px 55px rgba(2, 6, 17, 0.36);
+  color-scheme: dark;
 }
 /* 繁中: Traditional glyphs and fonts; the faces load with the language (App.tsx), not for every visitor */
 :root:lang(zh-Hant) {
-  --serif: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
-  --num: "Newsreader", "Noto Serif TC", serif;
-  --sans: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+  --serif: "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --num: "Inter", "Noto Sans TC", system-ui, sans-serif;
+  --sans: "Inter", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
 
-/* the void at night: gilded light over deep violet; follows the system unless the player picks one */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #0e0a17;
-    --sheet: #181128;
-    --well: #231a3e;
-    --ink: #eee4cf;
-    --ink-2: #c0b29c;
-    --ink-3: #8d8172;
-    --rule: #3b2c5e;
-    --seal: #e0b15c;
-    --seal-soft: rgba(224, 177, 92, 0.1);
-    --seal-tint: rgba(224, 177, 92, 0.18);
-    --hi: #7ce0c8;
-    --ink-hover: #f7ecc4;
-    --overlay: rgba(10, 7, 16, 0.92);
-    --weapon-shadow: drop-shadow(0 0 7px rgba(224, 177, 92, 0.22));
-    --icon-rim: drop-shadow(0 0 1px rgba(240, 210, 150, 0.75)) drop-shadow(0 0 2px rgba(224, 177, 92, 0.32));
-    --raised: #2e2344;
-    --raised-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(224, 177, 92, 0.08);
-    --switch-off: #2a1f3d;
-    --knob: #ece1c8;
-    --frame: rgba(224, 177, 92, 0.22);
-    --gold-grad: linear-gradient(180deg, #f3dc9a, #c9992e);
-    --gold-grad-hi: linear-gradient(180deg, #f9e7b6, #d9ab48);
-    --paper-glow:
-      radial-gradient(1100px 460px at 50% -120px, rgba(224, 177, 92, 0.07), transparent 65%), radial-gradient(900px 540px at 108% -60px, rgba(124, 80, 200, 0.1), transparent 60%),
-      radial-gradient(1500px 900px at 50% 115%, rgba(90, 60, 170, 0.05), transparent 60%);
-    --vignette: radial-gradient(140% 130% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.38));
-    --shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #0e0a17;
-  --sheet: #181128;
-  --well: #231a3e;
-  --ink: #eee4cf;
-  --ink-2: #c0b29c;
-  --ink-3: #8d8172;
-  --rule: #3b2c5e;
-  --seal: #e0b15c;
-  --seal-soft: rgba(224, 177, 92, 0.1);
-  --seal-tint: rgba(224, 177, 92, 0.18);
-  --hi: #7ce0c8;
-  --ink-hover: #f7ecc4;
-  --overlay: rgba(10, 7, 16, 0.92);
-  --weapon-shadow: drop-shadow(0 0 7px rgba(224, 177, 92, 0.22));
-  --icon-rim: drop-shadow(0 0 1px rgba(240, 210, 150, 0.75)) drop-shadow(0 0 2px rgba(224, 177, 92, 0.32));
-  --raised: #2e2344;
-  --raised-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(224, 177, 92, 0.08);
-  --switch-off: #2a1f3d;
-  --knob: #ece1c8;
-  --frame: rgba(224, 177, 92, 0.22);
-  --gold-grad: linear-gradient(180deg, #f3dc9a, #c9992e);
-  --gold-grad-hi: linear-gradient(180deg, #f9e7b6, #d9ab48);
-  --paper-glow:
-    radial-gradient(1100px 460px at 50% -120px, rgba(224, 177, 92, 0.07), transparent 65%), radial-gradient(900px 540px at 108% -60px, rgba(124, 80, 200, 0.1), transparent 60%),
-    radial-gradient(1500px 900px at 50% 115%, rgba(90, 60, 170, 0.05), transparent 60%);
-  --vignette: radial-gradient(140% 130% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.38));
-  --shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
-  color-scheme: dark;
+/* the same layout, lit: ivory paper, violet ink (chosen with the theme button) */
+:root[data-theme="light"] {
+  --paper: #f3f0ea;
+  --sheet: #fffefa;
+  --well: #f2eef8;
+  --ink: #1e2032;
+  --ink-2: #515a70;
+  --ink-3: #68728b;
+  --rule: #d8d0df;
+  --seal: #6048ad;
+  --seal-soft: rgba(96, 72, 173, 0.08);
+  --seal-tint: rgba(96, 72, 173, 0.16);
+  --hi: #087b6b;
+  --ink-hover: #16112b;
+  --overlay: rgba(243, 240, 234, 0.92);
+  --weapon-shadow: drop-shadow(0 2px 3px rgba(30, 32, 50, 0.18));
+  --icon-rim: none;
+  --raised: #ffffff;
+  --raised-shadow: 0 1px 2px rgba(40, 33, 60, 0.12);
+  --switch-off: #d8d0df;
+  --knob: #ffffff;
+  --frame: rgba(96, 72, 173, 0.2);
+  --gold: #a66818;
+  --danger: #b34650;
+  --gold-grad: linear-gradient(135deg, #8f74e0, #6d55c8);
+  --gold-grad-hi: linear-gradient(135deg, #a58cec, #7c64d6);
+  --paper-glow: radial-gradient(circle at 88% -12%, rgba(182, 165, 255, 0.28), transparent 31rem), radial-gradient(circle at -9% 32%, rgba(115, 218, 200, 0.16), transparent 35rem);
+  --vignette: radial-gradient(140% 130% at 50% 40%, transparent 66%, rgba(40, 33, 60, 0.06));
+  --shadow: 0 20px 40px rgba(40, 33, 60, 0.09);
+  color-scheme: light;
 }
 
 /* chamfered corners, the orokin cut: two opposite corners only, so the shape reads as a cut gem */
@@ -166,6 +130,11 @@ input,
 select {
   font: inherit;
   color: inherit;
+}
+/* 占位符也是正文：浏览器默认灰在深色底上只有 3.3:1，统一提到可读的次级色 */
+::placeholder {
+  color: var(--ink-2);
+  opacity: 1;
 }
 button {
   cursor: pointer;
@@ -505,6 +474,213 @@ a {
   min-width: 0;
 }
 
+/* ---------- coach 版式：结论 → 录入 → 长对比（窄屏先看到当前/目标，再一跳看路线） ---------- */
+/* 新版的助手页单列排布；Build 仍沿用上面的双栏 .coach */
+.coach-new {
+  grid-template-columns: minmax(0, 1fr);
+}
+.coach-inputs {
+  display: grid;
+  grid-template-columns: 450px minmax(0, 1fr);
+  gap: 30px;
+  align-items: start;
+}
+.coach-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  min-width: 0;
+}
+/* 顶部摘要：一行标题 + 三个跟随排序的路由指标 */
+.coach-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  gap: 16px 28px;
+  align-items: center;
+  padding: 18px 22px;
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--seal);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--seal) 5%, var(--sheet)), var(--sheet));
+}
+.coach-summary h1 {
+  margin: 0;
+  font: 900 26px / 1.2 var(--serif);
+  letter-spacing: 0.06em;
+}
+.coach-summary .eyebrow {
+  display: block;
+  margin-top: 10px;
+  color: var(--seal);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+}
+.coach-summary strong {
+  display: block;
+  margin-top: 3px;
+  font: 700 16px / 1.4 var(--serif);
+}
+.coach-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.coach-summary-metrics dt {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.coach-summary-metrics dd {
+  margin: 3px 0 0;
+  font-family: var(--num);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+/* 桌面没有这个入口：路线就在下一屏 */
+.coach-jump {
+  display: none;
+}
+/* 只给读屏的页面标题 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* 识别结果的逐项核对面板：先列读到什么，再让玩家逐条标记或跳去改数 */
+.ocr-check {
+  margin-top: 10px;
+  padding: 12px 13px 10px;
+  border: 1px solid color-mix(in srgb, var(--seal) 40%, var(--rule));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--seal) 6%, var(--sheet));
+  font-size: 12.5px;
+}
+.ocr-check-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+}
+.ocr-check-h h3 {
+  margin: 0;
+  font: 750 13px var(--sans);
+  color: var(--seal);
+  letter-spacing: 0.04em;
+}
+.ocr-check-h .small {
+  margin-left: auto;
+  text-align: right;
+}
+.ocr-list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 8px;
+  padding: 0;
+  list-style: none;
+}
+.ocr-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 2px 4px 2px 2px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  background: var(--sheet);
+}
+.ocr-list li.done {
+  border-color: color-mix(in srgb, var(--hi) 45%, var(--rule));
+  background: color-mix(in srgb, var(--hi) 6%, var(--sheet));
+}
+.ocr-list li.warn {
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--rule));
+  background: color-mix(in srgb, var(--gold) 7%, var(--sheet));
+  flex-wrap: wrap;
+}
+.ocr-goto {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.ocr-goto .sign {
+  color: var(--hi);
+  font-weight: 700;
+}
+.ocr-goto.neg .sign {
+  color: var(--danger);
+}
+.ocr-goto .name {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ocr-goto b {
+  margin-left: auto;
+  font-family: var(--num);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.ocr-goto:hover .name {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ocr-ok {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.ocr-ok.on {
+  border-color: color-mix(in srgb, var(--hi) 55%, var(--rule));
+  background: color-mix(in srgb, var(--hi) 12%, transparent);
+  color: var(--hi);
+}
+.ocr-warn {
+  flex-basis: 100%;
+  padding: 0 10px 6px;
+  color: var(--gold);
+  font-size: 11.5px;
+}
+.ocr-check-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+.ocr-check-foot .text-btn {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--seal) 45%, var(--rule));
+  background: var(--seal-soft);
+  color: var(--ink);
+  font-weight: 650;
+}
+
 /* ---------- panels: gilded steles ---------- */
 .panel {
   position: relative;
@@ -545,6 +721,7 @@ a {
   margin-bottom: 8px;
 }
 /* each panel title opens with a small gold lozenge */
+.panel-h h1,
 .panel-h h2 {
   display: inline-flex;
   align-items: center;
@@ -552,6 +729,7 @@ a {
   font: 700 18px var(--serif);
   letter-spacing: 0.08em;
 }
+.panel-h h1::before,
 .panel-h h2::before {
   content: "";
   width: 7px;
@@ -1919,25 +2097,23 @@ dialog.lightbox img {
 
 /* ---------- ranges page: the codex ---------- */
 .ranges {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
   margin-top: 28px;
 }
-.ranges-h {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-}
-.ranges-h h2 {
-  margin: 0;
-  font: 700 20px var(--serif);
-  letter-spacing: 0.08em;
+.ranges-panel {
+  padding-bottom: 16px;
 }
 .ranges-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px 20px;
-  margin: 16px 0 12px;
+  margin: 4px 0 12px;
+}
+.ranges-note {
+  margin: 14px 0 0;
 }
 .ranges-hint {
   margin-left: auto;
@@ -2200,6 +2376,11 @@ dialog.lightbox img {
   max-width: 760px;
   margin: 28px auto 0;
 }
+.article h1 {
+  margin: 0 0 6px;
+  font: 900 30px / 1.2 var(--serif);
+  letter-spacing: 0.06em;
+}
 .article h2 {
   display: flex;
   align-items: center;
@@ -2268,6 +2449,9 @@ dialog.lightbox img {
   .coach {
     grid-template-columns: minmax(0, 1fr);
   }
+  .coach-inputs {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 720px) {
   .app {
@@ -2295,6 +2479,47 @@ dialog.lightbox img {
   }
   .panel {
     padding: 12px 14px 16px;
+  }
+  /* 窄屏：结论摘要压成一块，底部给一条直达路线的按钮 */
+  .coach-summary {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  .coach-summary h1 {
+    font-size: 21px;
+  }
+  .coach-summary-metrics dd {
+    font-size: 17px;
+  }
+  .coach-new {
+    margin-bottom: 56px;
+  }
+  .coach-jump {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    width: 100%;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--rule);
+    background: color-mix(in srgb, var(--paper) 93%, transparent);
+    backdrop-filter: blur(8px);
+    color: var(--seal);
+    font: 600 15px var(--sans);
+    letter-spacing: 0.04em;
+  }
+  /* 触控目标至少 44×44（P2） */
+  .text-btn,
+  .tabs a {
+    min-height: 44px;
+  }
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
   }
   /* 窄屏的面板头放不下就换行（下一步的排序 + 分享、配卡的模式按钮），不横向溢出 */
   .panel-h {
@@ -2416,42 +2641,91 @@ dialog.lightbox img {
   outline: none;
   border-color: var(--seal);
 }
+/* build slots: the showcase's 4-column card grid, two columns on narrow screens */
 .build-slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 8 格等高：紫卡那张字多，不让整块网格高低不齐 */
+  grid-auto-rows: 1fr;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .build-slots li {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 4px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  min-height: 96px;
+  padding: 11px 12px 9px;
+  border: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--seal) 3%, var(--well));
 }
 .build-slots li:last-child {
-  border-bottom: 0;
+  border-bottom: 1px solid var(--rule);
 }
 .build-slots .slot-no {
-  min-width: 18px;
-  color: var(--seal);
-  font: 700 13px / 1 var(--serif);
+  color: var(--gold);
+  font: 750 10.5px / 1 var(--sans);
+  letter-spacing: 0.14em;
   font-variant-numeric: tabular-nums;
 }
 .build-slots .slot-name {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   font-size: 14px;
 }
 .build-slots .slot-stats {
-  margin-left: auto;
-  text-align: right;
-  font-size: 12.5px;
+  margin-left: 0;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.build-slots .slot-ops,
+.build-slots .slot-stack {
+  flex-wrap: wrap;
+  max-width: 100%;
+  gap: 6px;
+  margin-top: auto;
+  margin-left: 0;
+  padding-top: 4px;
+}
+.build-slots .slot-ops .text-btn,
+.build-slots .slot-stack .text-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--sheet);
 }
 .build-slots .riven-slot {
-  box-shadow: inset 3px 0 0 var(--seal);
-  background: var(--seal-soft);
-  padding-left: 10px;
+  border-color: color-mix(in srgb, var(--seal) 55%, var(--rule));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--seal) 11%, var(--sheet)), var(--sheet));
+  box-shadow: none;
+  padding-left: 12px;
+}
+/* an empty slot keeps the grid's shape without pretending to hold a mod */
+.build-slots .slot-empty {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.55;
+}
+.build-slots .slot-empty .slot-name {
+  color: var(--ink-3);
+  font-weight: 500;
+  font-size: 12.5px;
+}
+@media (max-width: 900px) {
+  .build-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 /* 伤害面板前的四档结论行（评测指令 13）：一块浮金底的判词，读完它再往下看细账 */
 .build-verdict {
@@ -2728,11 +3002,10 @@ dialog.lightbox img {
 
 /* 窄屏（≤480px）保底：配卡台的卡槽与 Mod 库换成两行堆叠、档位对比收紧列宽，只求不溢出可读 */
 @media (max-width: 480px) {
-  .build-slots li,
+  /* 卡槽已是纵向卡片，只有 Mod 库还是「编号 + 名字 + 词条」的横排 */
   .build-pool button {
     flex-wrap: wrap;
   }
-  .build-slots .slot-stats,
   .build-pool .slot-stats {
     flex-basis: 100%;
     margin-left: 34px;
@@ -2765,28 +3038,44 @@ dialog.lightbox img {
 /* stele layout: a lintel of controls over a ledger of weapons, every row a struck line */
 .market {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 22px clamp(14px, 4vw, 30px) 44px;
   width: 100%;
+  margin-top: 28px;
 }
-.market-head .panel-h h2 {
+.market-panel {
+  padding-bottom: 12px;
+}
+.market-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.market-more .text-btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+}
+.market-meta {
   margin: 0;
-  font: 900 21px / 1.2 var(--serif);
-  color: var(--seal);
 }
-.market-controls {
+.market-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px 14px;
   align-items: center;
-  margin-top: 12px;
+  margin: 14px 0 6px;
 }
 .market-q {
-  flex: 1;
+  flex: 1 1 220px;
   min-width: 150px;
-  max-width: 260px;
+  max-width: 320px;
   background: var(--well);
   color: var(--ink);
   border: 1px solid var(--rule);
@@ -2795,7 +3084,7 @@ dialog.lightbox img {
 }
 .market-q:focus {
   outline: none;
-  border-color: var(--frame);
+  border-color: var(--seal);
 }
 /* 骨架屏（P0-5）：首访无缓存时的一块稳定结构，替代孤零零的 loading 文案；扫光在 300% 宽的渐变上来回，两端都在窗外所以循环无缝 */
 .market-skeleton {
@@ -2834,7 +3123,7 @@ dialog.lightbox img {
 /* the columns' names, one thin engraved line over the list: same track template as the rows */
 .market-head-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 72px 76px 96px;
+  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 72px 96px 96px;
   gap: 10px;
   padding: 0 10px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent);
@@ -2847,7 +3136,7 @@ dialog.lightbox img {
 }
 .market-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 72px 76px 96px;
+  grid-template-columns: 40px minmax(0, 1fr) 78px 78px 72px 96px 96px;
   gap: 10px;
   align-items: center;
   width: 100%;
@@ -3088,6 +3377,16 @@ dialog.lightbox img {
   .market-detail {
     padding-left: 12px;
   }
+  /* 窄屏：搜索框独占一行，页头竖排，徽章落到标题下面 */
+  .market-toolbar .market-q {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .page-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }
 
 /* ---------- account (可选登录：游客无感，登录解锁云同步) ---------- */
@@ -3234,4 +3533,315 @@ dialog.lightbox img {
 .share-ask .share-btns .auth-submit {
   width: auto;
   padding: 9px 22px;
+}
+
+/* ================= console skin: the redesign showcase, applied to the existing DOM ================= */
+/* the page: deep void, two soft glows, a glass bar on top */
+.app {
+  max-width: 1380px;
+}
+body {
+  background-attachment: fixed;
+}
+/* no shrine frame around the viewport in the console layout */
+body::after {
+  content: none;
+}
+/* the top bar is glass and stays put */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(18px);
+  border-bottom-color: color-mix(in srgb, var(--rule) 70%, transparent);
+}
+.top::before {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 4%, var(--seal) 32%, var(--seal) 68%, transparent 96%);
+  opacity: 0.45;
+}
+.brand {
+  font: 800 22px / 1.2 var(--sans);
+  letter-spacing: 0.02em;
+}
+.brand .riven-mark,
+.brand > svg {
+  color: var(--seal);
+}
+/* navigation: pills, not engraved tabs */
+.tabs a {
+  padding: 10px 14px;
+  border-radius: 9px;
+  color: var(--ink-2);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.tabs a:hover {
+  color: var(--ink);
+  background: var(--seal-soft);
+}
+.tabs a[aria-current="page"] {
+  color: var(--ink);
+  background: var(--seal-soft);
+  font-weight: 700;
+}
+.tabs a[aria-current="page"]::after {
+  content: none;
+}
+/* panels: rounded cards on the void, no stele ornaments */
+.panel {
+  border-radius: 16px;
+  border-color: var(--rule);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--seal) 4%, var(--sheet)), var(--sheet) 120px);
+  box-shadow: var(--shadow);
+}
+.panel::before,
+.panel::after {
+  content: none;
+}
+.panel-h h1,
+.panel-h h2 {
+  font-family: var(--sans);
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+.panel-h h1::before,
+.panel-h h2::before {
+  border-radius: 2px;
+}
+/* controls: soft corners, violet focus */
+button,
+input,
+select,
+textarea {
+  border-radius: 8px;
+}
+.seg {
+  border-radius: 10px;
+}
+.seg button {
+  border-radius: 7px;
+}
+.seg button.on {
+  background: var(--seal-soft);
+  box-shadow: inset 0 0 0 1px var(--seal);
+  color: var(--ink);
+}
+.chip,
+.tag,
+.badge {
+  border-radius: 999px;
+}
+.icon-btn {
+  border-color: var(--rule);
+  background: var(--sheet);
+  border-radius: 9px;
+}
+.text-btn {
+  border-radius: 8px;
+}
+.icon-btn:hover:not(:disabled) {
+  border-color: var(--seal);
+}
+/* the summary band follows the card language */
+.coach-summary {
+  border-radius: 16px;
+  border-top-width: 1px;
+  border-color: var(--rule);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--seal) 12%, var(--sheet)), var(--sheet) 70%);
+  box-shadow: var(--shadow);
+}
+.coach-summary h1 {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+.coach-summary .eyebrow {
+  color: var(--seal);
+  letter-spacing: 0.16em;
+}
+.coach-summary-metrics dd {
+  color: var(--gold);
+  font-weight: 650;
+}
+/* the footer sits under a quiet rule */
+.site-foot {
+  border-top-color: var(--rule);
+}
+
+/* ---- console skin: component pass ---- */
+/* flat chamfers become soft corners */
+.btn,
+.chip,
+.tag {
+  border-radius: 9px;
+}
+.btn::before,
+.btn::after,
+.chip::before,
+.chip::after,
+.tag::before,
+.tag::after {
+  clip-path: none;
+}
+.btn::before {
+  border-radius: 9px;
+}
+.btn::after {
+  border-radius: 8px;
+}
+.btn.primary {
+  color: #15102b;
+}
+.chip,
+.chip::before,
+.chip::after,
+.tag,
+.tag::before,
+.tag::after {
+  border-radius: 999px;
+}
+.chip.on {
+  color: #15102b;
+}
+/* the recommendation badge: a pill, not a rotated chop */
+.seal {
+  border-width: 1px;
+  border-radius: 999px;
+  padding: 0 8px;
+  transform: none;
+  font-family: var(--sans);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+/* screenshot drop zone */
+.drop {
+  border-radius: 12px;
+}
+/* route rows: separate cards, the recommended one lit violet */
+.routes {
+  display: grid;
+  gap: 10px;
+}
+.route {
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--seal) 3%, var(--well));
+  overflow: hidden;
+}
+.route:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+.route.rec {
+  border-color: color-mix(in srgb, var(--seal) 55%, var(--rule));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--seal) 11%, var(--sheet)), var(--sheet));
+}
+.route.rec::before {
+  content: none;
+}
+.route-head {
+  padding: 12px 14px 8px;
+}
+.route-head:hover {
+  background: var(--seal-soft);
+}
+.route-no {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+/* market rows: quiet cards, the open one lit */
+.market-list {
+  display: grid;
+  gap: 6px;
+}
+.market-list li {
+  border-radius: 10px;
+}
+.market-list li.open {
+  background: color-mix(in srgb, var(--seal) 6%, var(--sheet));
+}
+.market-row {
+  border-radius: 10px;
+}
+.market-head-row {
+  color: var(--ink-3);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* build slots and the mod pool: cards */
+.build-slots li,
+.build-pool button,
+.build-pool li {
+  border-radius: 10px;
+}
+/* page titles in the showcase's scale */
+.article h1 {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* headings across the app are the console's sans, not the temple's serif */
+.top .brand,
+.panel-h h1,
+.panel-h h2,
+.section-title h2,
+.article h1,
+.article h2 {
+  font-family: var(--sans);
+}
+/* page hero: the showcase's label + headline + one-line purpose, with a badge on the right */
+.page-hero {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  margin-bottom: 2px;
+}
+.page-hero > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.page-hero .eyebrow {
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.page-hero h1 {
+  margin: 0;
+  font: 800 clamp(26px, 3vw, 38px) / 1.15 var(--sans);
+  letter-spacing: -0.02em;
+}
+.page-hero p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+/* the data-source chip that closes the hero: quiet teal, never louder than the headline */
+.page-hero .badge {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 5px 11px;
+  border: 1px solid color-mix(in srgb, var(--hi) 34%, var(--rule));
+  background: color-mix(in srgb, var(--hi) 9%, transparent);
+  color: var(--hi);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+/* panel headers: the source note sits opposite the title, small and quiet */
+.panel-h .subtle {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 12px;
+  letter-spacing: 0.03em;
 }

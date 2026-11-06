@@ -17,7 +17,12 @@ export interface Shot {
 }
 
 /** An error is kept as what went wrong, not as text, so it follows a language switch. */
-export type OcrStatus = { kind: "idle" } | { kind: "busy"; first: boolean } | { kind: "done"; ms: number } | { kind: "error"; why: "noCard" | "failed" | "load" };
+export type OcrStatus =
+  | { kind: "idle" }
+  | { kind: "busy"; first: boolean }
+  /** traits = how many the reader found; kuva = whether it read the Kuva left */
+  | { kind: "done"; ms: number; traits: number; kuva: boolean }
+  | { kind: "error"; why: "noCard" | "failed" | "load" };
 
 interface Props {
   s: Strings;
@@ -41,6 +46,21 @@ export function Card({ s, session, cls, pool, shot, ocr, barFor, onPick, onWeapo
   const { lang, card } = session;
   const layout = cardLayout(card);
   const [zoom, setZoom] = useState(false);
+  // 已核对过的识别结果（按耗时认身份）：换一张图就会再提醒一次
+  const [ackMs, setAckMs] = useState<number | null>(null);
+  // 逐项核对：每条识别结果一个「已核对」标记，只作自检，不阻断修改
+  const [checks, setChecks] = useState<{ ms: number; ok: Record<string, boolean> } | null>(null);
+  const reviewOk = checks && ocr.kind === "done" && checks.ms === ocr.ms ? checks.ok : {};
+  const toggleCheck = (key: string) => {
+    if (ocr.kind !== "done") return;
+    setChecks({ ms: ocr.ms, ok: { ...reviewOk, [key]: !reviewOk[key] } });
+  };
+  /** 逐项编辑的入口：点核对条里的条目，焦点落到下方对应字段并选中，直接改数 */
+  const focusField = (id: string) => {
+    const input = document.getElementById(id)?.querySelector<HTMLInputElement>("input.num");
+    input?.focus();
+    input?.select();
+  };
   // 触屏提示语：手机上没有 Ctrl+V，也不容易拖拽（pointer: coarse）
   const touch = useMedia("(pointer: coarse)");
   const status =
@@ -86,7 +106,7 @@ export function Card({ s, session, cls, pool, shot, ocr, barFor, onPick, onWeapo
     for (const u of usedTags) if (u !== t.tag) blocked.set(u, "");
     if (!curse && splicedOnCard && !(def?.spliced ?? false)) for (const x of splicedAll) blocked.set(x, s.target.oneSpliced);
     return (
-      <li key={key} className={`trait${curse ? " neg" : ""}`}>
+      <li key={key} id={`trait-${key}`} className={`trait${curse ? " neg" : ""}`}>
         <span className="sign" aria-hidden="true">
           {curse ? "−" : "+"}
         </span>
@@ -172,6 +192,50 @@ export function Card({ s, session, cls, pool, shot, ocr, barFor, onPick, onWeapo
       )}
       {zoom && shot && <Lightbox src={shot.url} label={s.card.zoom} onClose={() => setZoom(false)} />}
 
+      {/* 识别结果逐项核对（P0）：读到什么就列什么，点条目跳到对应字段改数；不把「识别完成」当「数据无误」 */}
+      {ocr.kind === "done" && ackMs !== ocr.ms && (
+        <section className="ocr-check" aria-label={s.card.ocrReview}>
+          <div className="ocr-check-h">
+            <h3>{s.card.ocrReview}</h3>
+            <span className="muted small">{s.card.ocrCheck(ocr.traits)}</span>
+          </div>
+          <ul className="ocr-list">
+            {[...card.pos.map((tr, i) => ({ key: `p${i}`, curse: false, tr })), ...(card.neg ? [{ key: "n", curse: true, tr: card.neg }] : [])].map(({ key, curse, tr }) => {
+              const def = cls && tr.tag ? statOf(cls, tr.tag) : undefined;
+              const done = reviewOk[key] === true;
+              return (
+                <li key={key} className={done ? "done" : undefined}>
+                  <button type="button" className={`ocr-goto${curse ? " neg" : ""}`} onClick={() => focusField(`trait-${key}`)}>
+                    <span className="sign" aria-hidden="true">
+                      {curse ? "−" : "+"}
+                    </span>
+                    <span className="name">{def ? def.name[lang] : s.card.pickStat}</span>
+                    <b>{def && tr.shown != null ? formatDisplay(def, tr.shown) : "—"}</b>
+                  </button>
+                  <button type="button" className={`ocr-ok${done ? " on" : ""}`} aria-pressed={done} onClick={() => toggleCheck(key)}>
+                    {done ? s.card.ocrItemOk : s.card.ocrItemCheck}
+                  </button>
+                </li>
+              );
+            })}
+            <li className={`ocr-kuva${ocr.kuva ? "" : " warn"}`}>
+              <button type="button" className="ocr-goto" onClick={() => focusField("kuva-field")}>
+                <KuvaIcon />
+                <span className="name">{s.card.kuvaLeft}</span>
+                <b>{session.kuva == null ? "—" : session.kuva.toLocaleString("en-US")}</b>
+              </button>
+              {!ocr.kuva && <small className="ocr-warn">{s.card.ocrKuvaMissing}</small>}
+            </li>
+          </ul>
+          <div className="ocr-check-foot">
+            <span className="muted small">{s.card.ocrEditHint}</span>
+            <button type="button" className="text-btn" onClick={() => setAckMs(ocr.ms)}>
+              {s.card.ocrCheckOk}
+            </button>
+          </div>
+        </section>
+      )}
+
       <WeaponPicker s={s} lang={lang} value={session.weaponId} onPick={onWeapon} disposition={session.disposition} onDisposition={onDisposition} />
 
       {cls && (
@@ -231,7 +295,7 @@ export function Card({ s, session, cls, pool, shot, ocr, barFor, onPick, onWeapo
           <span>{s.card.cycles}</span>
           <NumberField label={s.card.cycles} value={card.cycles} min={0} step={1} size={5} onCommit={(n) => onCard({ ...card, cycles: Math.round(n ?? 0) })} />
         </label>
-        <label>
+        <label id="kuva-field">
           <KuvaIcon />
           <span>{s.card.kuvaLeft}</span>
           <NumberField

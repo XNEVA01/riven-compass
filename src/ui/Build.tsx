@@ -29,6 +29,8 @@ import { NumberField, Segmented } from "./controls";
 import { WeaponImage } from "./icons";
 
 interface Strings {
+  page: string;
+  pageHint: string;
   needWeapon: string;
   /** 名册里有该武器、但伤害计算没收录（近战/Archgun/Kitgun/Zaw）：|W| = 武器名 */
   unsupported: string;
@@ -351,6 +353,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
   if (!rosterWeapon || !cls) {
     return (
       <main className="coach">
+        <h1 className="sr-only">{lang === "en" ? "Build" : "配卡"}</h1>
         <section className="panel">
           <p className="empty">{t.needWeapon}</p>
         </section>
@@ -363,6 +366,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
     const name = weaponName(session.weaponId, lang);
     return (
       <main className="coach">
+        <h1 className="sr-only">{lang === "en" ? "Build" : "配卡"}</h1>
         <div className="col-left">
           <section className="panel">
             <div className="panel-h">
@@ -502,6 +506,13 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
 
   return (
     <main className="coach">
+      <header className="page-hero">
+        <div>
+          <span className="eyebrow">BUILD LAB</span>
+          <h1>{t.page}</h1>
+          <p>{t.pageHint}</p>
+        </div>
+      </header>
       <div className="col-left">
         <section className="panel">
           <div className="panel-h">
@@ -641,7 +652,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                 {seq.map((e, si) =>
                   e.kind === "riven" ? (
                     <li key="riven" className="riven-slot">
-                      <span className="slot-no">{si + 1}</span>
+                      <span className="slot-no">{String(si + 1).padStart(2, "0")}</span>
                       <span className="slot-name">{t.riven}</span>
                       <span className="slot-stats">
                         {session.card.pos.map((tr) => `${statName(cls, tr.tag, lang)} ${formatDisplay(statOf(cls, tr.tag), tr.shown ?? 0)}`).join("，")}
@@ -664,7 +675,7 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                       const st = m.stack;
                       return (
                         <li key={m.id}>
-                          <span className="slot-no">{si + 1}</span>
+                          <span className="slot-no">{String(si + 1).padStart(2, "0")}</span>
                           <span className="slot-name">{lang === "en" ? m.en : m.zh}</span>
                           <span className="slot-stats">{modStatLine(m, lang, t)}</span>
                           {st && (
@@ -710,6 +721,13 @@ export function Build({ s, lang, session, onShare }: { s: { build: Strings; shar
                     })()
                   ),
                 )}
+                {/* 空槽位：把 8 格补齐，读者一眼看出这套卡还剩几个位置 */}
+                {Array.from({ length: Math.max(0, 8 - seq.length) }, (_, k) => seq.length + k + 1).map((n) => (
+                  <li key={n} className="slot-empty" aria-hidden="true">
+                    <span className="slot-no">{String(n).padStart(2, "0")}</span>
+                    <span className="slot-name">—</span>
+                  </li>
+                ))}
               </ol>
             </section>
 

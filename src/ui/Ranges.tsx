@@ -103,18 +103,28 @@ export function Ranges({
 
   return (
     <section className="ranges">
-      <header className="ranges-h">
-        <h2>{s.ranges.title}</h2>
-        <Segmented label={s.ranges.title} value={view} options={(["class", "layout"] as const).map((v) => ({ value: v, label: s.ranges.view[v] }))} onChange={setView} />
+      <header className="page-hero">
+        <div>
+          <span className="eyebrow">{s.ranges.eyebrow}</span>
+          <h1>{s.ranges.headline}</h1>
+          <p>{s.ranges.purpose}</p>
+        </div>
+        <span className="badge">{s.ranges.badge.replace("|C|", GAME.classes[cls].name[lang]).replace("|D|", disposition.toFixed(2))}</span>
       </header>
-      {view === "class" ? (
-        <ByClass s={s} lang={lang} cls={cls} setCls={setCls} weapon={weapon} onlyWeapon={onlyWeapon} setOnlyWeapon={setOnlyWeapon} check={check} setCheck={setCheck} />
-      ) : (
-        <ByLayout s={s} lang={lang} layout={layout} setLayout={setLayout} curse={curse} setCurse={setCurse} mine={weapon?.cls} check={check} setCheck={setCheck} />
-      )}
-      <p className="muted small">
-        {s.ranges.note} <DispositionField value={disposition} onChange={onDisposition} labels={s.disposition} />
-      </p>
+      <div className="panel ranges-panel">
+        <div className="panel-h">
+          <h2>{s.ranges.table}</h2>
+          <Segmented label={s.ranges.title} value={view} options={(["class", "layout"] as const).map((v) => ({ value: v, label: s.ranges.view[v] }))} onChange={setView} />
+        </div>
+        {view === "class" ? (
+          <ByClass s={s} lang={lang} cls={cls} setCls={setCls} weapon={weapon} onlyWeapon={onlyWeapon} setOnlyWeapon={setOnlyWeapon} check={check} setCheck={setCheck} />
+        ) : (
+          <ByLayout s={s} lang={lang} layout={layout} setLayout={setLayout} curse={curse} setCurse={setCurse} mine={weapon?.cls} check={check} setCheck={setCheck} />
+        )}
+        <p className="muted small ranges-note">
+          {s.ranges.note} <DispositionField value={disposition} onChange={onDisposition} labels={s.disposition} />
+        </p>
+      </div>
     </section>
   );
 }

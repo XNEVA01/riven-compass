@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type PulledState, useAccount } from "../account/useAccount";
 import { cancelPlans, plan as planRoutes } from "../engine/client";
 import { GAME, isLang, LANGS, type Lang, statOf, weaponById } from "../engine/data";
 import { whyUnreachable } from "../engine/diagnose";
 import { formatDisplay, LAYOUTS, layoutKey, setDisposition } from "../engine/formula";
 import { poolFor } from "../engine/pool";
-import { fmtKuva, HTML_LANG, LANG_LABEL, strings } from "../i18n";
+import { fmtKuva, fmtPct, HTML_LANG, LANG_LABEL, strings } from "../i18n";
 import { loadWage, targetFromCombo } from "../market/profit";
 import { bestCombo } from "../market/stats";
 import { lookupMarket } from "../market/variants";
 import { loadMarketOnce, type MarketCombo } from "../market/wm";
-import { recognize, warmOcr } from "../ocr/client";
 import type { ParsedCard } from "../ocr/parse";
 import { copyText, decodeSession, shareChannel, shareUrl, shortShareUrl } from "../share";
 import {
@@ -40,7 +39,6 @@ import {
   withAutoValues,
 } from "../state";
 import { AuthDialog } from "./AuthDialog";
-import { Build } from "./Build";
 import { Card, type OcrStatus, type Shot } from "./Card";
 import { Compare } from "./Compare";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -51,10 +49,14 @@ import { useMedia } from "./media";
 import { Profit } from "./Profit";
 import { Ranges } from "./Ranges";
 import { type PlanView, RouteList, routeView, type SortKey } from "./RouteList";
-import { routeKey } from "./routeText";
+import { routeKey, routeTitle } from "./routeText";
 import { Target } from "./Target";
 
 type Page = "coach" | "build" | "market" | "ranges" | "guide";
+
+/** OCR（onnxruntime + 模型）与配卡数据按需加载：首屏不背这两块，主包小一截（评测 P2） */
+const loadOcr = () => import("../ocr/client");
+const BuildPage = lazy(() => import("./Build").then((m) => ({ default: m.Build })));
 
 /** Every page the header offers; cn (国服) has no warframe.market, so the market tab is gated there. */
 const PAGES = ["coach", "build", "market", "ranges", "guide"] as const;
@@ -108,27 +110,24 @@ function withWeapon(x: Session, id: string): Session {
   return { ...x, weaponId: id, target, card: sameClass ? x.card : cardForClass(x.card, w.cls), chosen: null, counted: [] };
 }
 
-type Theme = "auto" | "light" | "dark";
+type Theme = "light" | "dark";
 const THEME_KEY = "riven-roll:theme";
-const THEMES: Theme[] = ["auto", "light", "dark"];
+const THEMES: Theme[] = ["light", "dark"];
 
-/** Light, dark, or the system's: a per-browser choice, kept apart from the session so 清空 and 示例 leave it alone. */
+/** The console is dark; light is the alternate. A per-browser choice, kept apart from the session. */
 function ThemeButton({ s }: { s: ReturnType<typeof strings> }) {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
-      const t = localStorage.getItem(THEME_KEY);
-      return t === "light" || t === "dark" ? t : "auto";
+      return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
     } catch {
-      return "auto";
+      return "dark";
     }
   });
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "auto") delete root.dataset.theme;
-    else root.dataset.theme = theme;
+    root.dataset.theme = theme;
     try {
-      if (theme === "auto") localStorage.removeItem(THEME_KEY);
-      else localStorage.setItem(THEME_KEY, theme);
+      localStorage.setItem(THEME_KEY, theme);
     } catch {
       // storage blocked: the choice lasts until the page closes
     }
@@ -144,12 +143,6 @@ function ThemeButton({ s }: { s: ReturnType<typeof strings> }) {
           </>
         )}
         {theme === "dark" && <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" />}
-        {theme === "auto" && (
-          <>
-            <circle cx="12" cy="12" r="8.5" />
-            <path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" />
-          </>
-        )}
       </svg>
     </button>
   );
@@ -219,6 +212,13 @@ interface Comparison {
 
 /** Where players can write about problems and ideas. */
 const CONTACT = "1783749451@qq.com";
+
+/** FNV-1a 32 位：把规划的输入压成一个固定种子（同一输入刷新后分位数不变）。 */
+function planSeed(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
 
 /** The project this tool is a rework of — its author also provided the game-data pipeline — credited in every page's footer. */
 const PROJ_AUTHOR = "wxhn1225/riven-roll";
@@ -334,9 +334,15 @@ export function App() {
     if (shared) setIncoming(shared);
     else setToast(s.share.bad);
   }, [s]);
-  // OCR 预热：模型共 6.4MB、加载在 worker 里，页面打开即取——首次粘贴不再等下载+初始化（此前只在点开图片按钮时预热）
+  // OCR 预热：模型共 6.4MB、加载在 worker 里——等首屏空闲再取，既不抢带宽也不让首次粘贴干等
   useEffect(() => {
-    warmOcr();
+    const warm = () => void loadOcr().then((m) => m.warmOcr());
+    const idle = window.requestIdleCallback?.(warm, { timeout: 2500 });
+    const timer = idle == null ? window.setTimeout(warm, 1200) : undefined;
+    return () => {
+      if (idle != null) window.cancelIdleCallback?.(idle);
+      if (timer != null) window.clearTimeout(timer);
+    };
   }, []);
   // 云同步：登录后每次会话变化防抖 2s 推送（游客/demo 由 hook 内部静默）
   useEffect(() => {
@@ -441,19 +447,20 @@ export function App() {
       setCompare(null);
       if (location.hash && !location.hash.startsWith("#/coach")) location.hash = "";
       try {
-        const [{ screen, ms, width, height }, shotKey] = await Promise.all([recognize(f), imageKey(f)]);
+        const [{ screen, ms, width, height }, shotKey] = await Promise.all([loadOcr().then((m) => m.recognize(f)), imageKey(f)]);
         if (id !== ocrId.current) return;
         ocrRuns.current++;
         acc.queueEvent("ocr");
         const crop = cardCrop(screen.cards, width, height);
         setShot((old) => (old?.url === url ? { url, crop } : old));
-        setOcr({ kind: "done", ms });
+        const cards = screen.cards.filter((k) => k.traits.length >= 2);
+        // 读出几条、赤毒读没读到都照实报：识别完成 ≠ 数据无误
+        setOcr({ kind: "done", ms, traits: cards[0]?.traits.length ?? 0, kuva: screen.kuva != null });
         if (screen.lang && screen.lang !== session.lang) {
           setToast(LANG_LABEL[screen.lang]);
         }
         const weaponId = screen.weaponId ?? session.weaponId;
         const c = weaponClass(weaponId);
-        const cards = screen.cards.filter((k) => k.traits.length >= 2);
         update((x) => {
           const weaponChanged = weaponId != null && weaponId !== x.weaponId;
           const next = weaponId ? withWeapon(x, weaponId) : x;
@@ -555,7 +562,8 @@ export function App() {
   const problem = !engineCard && cls ? cardProblem(cls, session.card) : null;
   // a retry after a failure works the same input out again
   const [retry, setRetry] = useState(0);
-  const planKey = JSON.stringify([session.weaponId, engineCard, engineTarget, session.card.cycles, session.kuva, compareCards, session.target.objective, problem, retry]);
+  const planInput = [session.weaponId, engineCard, engineTarget, session.card.cycles, session.kuva, compareCards, session.target.objective, problem];
+  const planKey = JSON.stringify([...planInput, retry]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: planKey captures every input
   useEffect(() => {
     const id = ++runId.current;
@@ -583,6 +591,8 @@ export function App() {
         budget: session.kuva,
         runs: 3000,
         compare: compareCards ?? undefined,
+        // 同一输入 → 同一 P50/P90；只是让数字可复核，不改变模型
+        seed: planSeed(JSON.stringify(planInput)),
       });
       if (id !== runId.current) return;
       if (!r.ok) return setPlan({ kind: "error", code: r.error });
@@ -617,6 +627,18 @@ export function App() {
   const chosenKey = session.chosen && shownRoutes.some((r) => routeKey(r.route) === session.chosen) ? session.chosen : null;
   // the route the page has open: the step a comparison or a missed cycle is counted on
   const openRoute = routeView(shownRoutes, sortBy, session.kuva, chosenKey).open ?? undefined;
+  // 顶部摘要：跟「下一步」面板里打开的是同一条路线，先给结论，再往下看推导
+  const summary = plan.kind === "ok" || plan.kind === "busy" ? shownRoutes.find((r) => routeKey(r.route) === openRoute) : undefined;
+  const summaryTitle =
+    summary && cls
+      ? routeTitle(summary.route, cls, session.card, lang, s)
+      : !session.weaponId
+        ? s.coach.summary.needWeapon
+        : plan.kind === "done"
+          ? s.routes.done
+          : plan.kind === "busy"
+            ? s.coach.summary.computing
+            : s.coach.summary.none;
 
   const onMissed = (price: number, route: string) => {
     offerUndo(s.undo.missed);
@@ -634,7 +656,7 @@ export function App() {
   };
 
   const pick = () => {
-    warmOcr();
+    void loadOcr().then((m) => m.warmOcr());
     file.current?.click();
   };
 
@@ -680,98 +702,148 @@ export function App() {
         ) : page === "ranges" ? (
           <Ranges s={s} lang={lang} weaponId={session.weaponId} disposition={session.disposition} onDisposition={onDisposition} />
         ) : page === "build" ? (
-          <Build s={s} lang={lang} session={session} onShare={() => void onShare()} />
+          <Suspense
+            fallback={
+              <main className="coach" aria-busy="true">
+                <section className="panel">
+                  <p className="muted small">{s.build.loading}</p>
+                  <div className="market-skeleton" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </section>
+              </main>
+            }
+          >
+            <BuildPage s={s} lang={lang} session={session} onShare={() => void onShare()} />
+          </Suspense>
         ) : page === "market" && lang !== "cn" ? (
           <Market s={s} lang={lang} onWeapon={setWeapon} onCombo={setCombo} />
         ) : (
-          <main className="coach">
-            <div className="col-left">
-              <Card
-                s={s}
-                session={session}
-                cls={cls}
-                pool={pool}
-                shot={shot}
-                ocr={ocr}
-                barFor={barFor}
-                onPick={pick}
-                onWeapon={setWeapon}
-                onCard={(card) => {
-                  cancelOcr();
-                  setCompare(null);
-                  update((x) => ({ ...x, card: cls ? withAutoValues(cls, card) : card, chosen: null }));
-                }}
-                onKuva={(kuva) => {
-                  cancelOcr();
-                  update((x) => ({ ...x, kuva }));
-                }}
-                onDemo={() => {
-                  offerUndo(s.undo.demo);
-                  const next = demoSession(lang);
-                  cancelOcr();
-                  setCompare(null);
-                  setShot(null);
-                  setSession(next);
-                  setSortBy(next.target.objective === "cycles" ? "cycles" : "kuva");
-                }}
-                onDisposition={onDisposition}
-                onClear={() => {
-                  offerUndo(s.undo.clear);
-                  const next = { ...defaultSession(), lang };
-                  cancelOcr();
-                  setSession(next);
-                  setSortBy(next.target.objective === "cycles" ? "cycles" : "kuva");
-                  setCompare(null);
-                  setShot(null);
-                  setOcr({ kind: "idle" });
-                }}
-              />
-              {cls && pool && <Target s={s} lang={lang} cls={cls} pool={pool} target={session.target} onChange={(target) => update((x) => ({ ...x, target, chosen: null }))} />}
-            </div>
-            <div className="col-right">
-              {compare && cls && (
-                <Compare
-                  s={s}
-                  lang={lang}
-                  cls={cls}
-                  cards={compare.cards}
-                  values={compare.values}
-                  objective={session.target.objective}
-                  fmt={(n) => fmtKuva(n, lang, true)}
-                  onKeep={onKeep}
-                />
-              )}
-              {cls ? (
-                <RouteList
-                  s={s}
-                  lang={lang}
-                  cls={cls}
-                  card={session.card}
-                  session={session}
-                  plan={plan}
-                  chosen={chosenKey}
-                  by={sortBy}
-                  onSort={(by) => {
-                    setSortBy(by);
-                    const objective = by === "cycles" ? "cycles" : "kuva";
-                    if (objective !== session.target.objective) update((x) => ({ ...x, target: { ...x.target, objective } }));
-                  }}
-                  onChoose={(key) => update((x) => ({ ...x, chosen: key, step: { cycles: 0, kuva: 0 } }))}
-                  onMissed={onMissed}
-                  onPaste={pick}
-                  onRetry={() => setRetry((n) => n + 1)}
-                  onShare={() => void onShare()}
-                />
-              ) : (
-                <section className="panel routes-panel">
-                  <p className="empty">{s.routes.needWeapon}</p>
-                </section>
-              )}
-              {lang !== "cn" && cls && shownRoutes.length > 0 && (
-                <Profit s={s} lang={lang} cls={cls} weaponEn={weapon?.name.en ?? null} target={session.target} routes={shownRoutes} kuva={session.kuva} />
-              )}
-            </div>
-          </main>
+          <>
+            <main className="coach coach-new">
+              <header className="coach-summary">
+                <div className="coach-summary-main">
+                  <h1>{s.coach.title}</h1>
+                  <span className="eyebrow">{s.coach.summary.label}</span>
+                  <strong>{summaryTitle}</strong>
+                </div>
+                <dl className="coach-summary-metrics">
+                  <div>
+                    <dt>{s.coach.summary.hit}</dt>
+                    <dd>{summary ? fmtPct(summary.route.stepChance) : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>{s.coach.summary.total}</dt>
+                    <dd>{summary ? s.routes.totalCycles(Math.round(summary.cycles.mean).toLocaleString("en-US")) : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>{s.coach.summary.budget}</dt>
+                    <dd>{summary?.withinBudget != null ? fmtPct(summary.withinBudget) : "—"}</dd>
+                  </div>
+                </dl>
+              </header>
+              <div className="coach-inputs">
+                <div className="col-left">
+                  <Card
+                    s={s}
+                    session={session}
+                    cls={cls}
+                    pool={pool}
+                    shot={shot}
+                    ocr={ocr}
+                    barFor={barFor}
+                    onPick={pick}
+                    onWeapon={setWeapon}
+                    onCard={(card) => {
+                      cancelOcr();
+                      setCompare(null);
+                      update((x) => ({ ...x, card: cls ? withAutoValues(cls, card) : card, chosen: null }));
+                    }}
+                    onKuva={(kuva) => {
+                      cancelOcr();
+                      update((x) => ({ ...x, kuva }));
+                    }}
+                    onDemo={() => {
+                      offerUndo(s.undo.demo);
+                      const next = demoSession(lang);
+                      cancelOcr();
+                      setCompare(null);
+                      setShot(null);
+                      setSession(next);
+                      setSortBy(next.target.objective === "cycles" ? "cycles" : "kuva");
+                    }}
+                    onDisposition={onDisposition}
+                    onClear={() => {
+                      offerUndo(s.undo.clear);
+                      const next = { ...defaultSession(), lang };
+                      cancelOcr();
+                      setSession(next);
+                      setSortBy(next.target.objective === "cycles" ? "cycles" : "kuva");
+                      setCompare(null);
+                      setShot(null);
+                      setOcr({ kind: "idle" });
+                    }}
+                  />
+                </div>
+                {cls && pool && (
+                  <div className="col-right">
+                    <Target s={s} lang={lang} cls={cls} pool={pool} target={session.target} onChange={(target) => update((x) => ({ ...x, target, chosen: null }))} />
+                  </div>
+                )}
+              </div>
+              <div className="coach-results" id="route-results">
+                {compare && cls && (
+                  <Compare
+                    s={s}
+                    lang={lang}
+                    cls={cls}
+                    cards={compare.cards}
+                    values={compare.values}
+                    objective={session.target.objective}
+                    fmt={(n) => fmtKuva(n, lang, true)}
+                    onKeep={onKeep}
+                  />
+                )}
+                {cls ? (
+                  <RouteList
+                    s={s}
+                    lang={lang}
+                    cls={cls}
+                    card={session.card}
+                    session={session}
+                    plan={plan}
+                    chosen={chosenKey}
+                    by={sortBy}
+                    onSort={(by) => {
+                      setSortBy(by);
+                      const objective = by === "cycles" ? "cycles" : "kuva";
+                      if (objective !== session.target.objective) update((x) => ({ ...x, target: { ...x.target, objective } }));
+                    }}
+                    onChoose={(key) => update((x) => ({ ...x, chosen: key, step: { cycles: 0, kuva: 0 } }))}
+                    onMissed={onMissed}
+                    onPaste={pick}
+                    onRetry={() => setRetry((n) => n + 1)}
+                    onShare={() => void onShare()}
+                  />
+                ) : (
+                  <section className="panel routes-panel">
+                    <p className="empty">{s.routes.needWeapon}</p>
+                  </section>
+                )}
+                {lang !== "cn" && cls && shownRoutes.length > 0 && (
+                  <Profit s={s} lang={lang} cls={cls} weaponEn={weapon?.name.en ?? null} target={session.target} routes={shownRoutes} kuva={session.kuva} />
+                )}
+              </div>
+            </main>
+            {/* 窄屏上「当前/目标」很长，先给一个直达结论的入口（桌面隐藏） */}
+            {shownRoutes.length > 0 && (
+              <button type="button" className="coach-jump" onClick={() => document.getElementById("route-results")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                {s.coach.jump} ↓
+              </button>
+            )}
+          </>
         )}
 
         <footer className="site-foot">

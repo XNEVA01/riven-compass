@@ -26,6 +26,19 @@ export function strings(l: Lang) {
       nav: { coach: "Coach", build: "Build", market: "Market", ranges: "Stat ranges", guide: "How it works" },
       /** 手机顶栏的短文案：<=720px 页签一行排完靠它 */
       navShort: { coach: "Coach", build: "Build", market: "Market", ranges: "Ranges", guide: "Guide" },
+      coach: {
+        title: "Riven coach",
+        jump: "See the recommended route",
+        summary: {
+          label: "Recommended route",
+          needWeapon: "Pick a weapon to begin",
+          hit: "Hit chance per cycle",
+          total: "Total cycles",
+          budget: "Done within your Kuva",
+          computing: "Working…",
+          none: "No route yet",
+        },
+      },
       account: {
         titleLogin: "Sign in",
         titleRegister: "Create an account",
@@ -65,6 +78,10 @@ export function strings(l: Lang) {
       },
       market: {
         title: "Riven market",
+        eyebrow: "MARKET / PRICES",
+        headline: "Filter first, compare second.",
+        purpose: "Price, supply and turnover on one line — with a clear way out when nothing matches.",
+        badge: "warframe.market · daily snapshot",
         source: "Listings from warframe.market · refreshed daily",
         loading: "Loading market data…",
         error: "Market data could not be loaded.",
@@ -87,10 +104,16 @@ export function strings(l: Lang) {
         /** 行级利润列的口径：最优组合的利润 */
         profitRowNote: "Best profit among this weapon's hot combos (platinum): a combo's median − the expected cost to roll it yourself",
         /** 表头两列的单位标注（白金） */
-        platProfit: "Profit (plat)",
+        platProfit: "Best combo profit",
         platPrice: "Median (plat)",
         /** 首屏渲染上次缓存数据时，新鲜度行旁的提示 */
         updating: "updating in the background…",
+        /** 每日快照的绝对时间（|T| 为本地时间与时区） */
+        snapshot: "Daily snapshot · data from |T|",
+        empty: "No weapon matches these filters.",
+        clear: "Clear filters",
+        more: "Show 60 more (|N| left)",
+        showing: "|A| of |B| weapons",
         turnoverHint: "Turnover = DE weekly trades |P| ÷ |N| listings — how fast listings actually sell",
         deRow: "|W| DE weekly trades |P| (unrolled |PU| / rerolled |PR|) · all-platform trade median ≈|M|",
         weekRange: "|A| – |B|",
@@ -113,6 +136,8 @@ export function strings(l: Lang) {
         formula: "Cost ≈ E[kuva] ÷ Kuva/h × Platinum/h · Profit = median − cost",
         formulaCalc: "Plugging in: |K| kuva ÷ |KW| kuva/h × |PW| plat/h ≈ |C| platinum",
         est: "Prices are combo medians across all rolls; the cost is exact for your tiers — read the profit as an estimate.",
+        /** 白金时薪为 0 时不下结论：0 机会成本会让任何洗卡都显得更划算 */
+        wageZero: "Your platinum-per-hour is 0, so no roll-vs-buy verdict is shown. Enter what an hour is actually worth to you.",
       },
       contact: "Questions and suggestions: ",
       foot: {
@@ -127,6 +152,9 @@ export function strings(l: Lang) {
       },
       theme: { label: "Theme", auto: "follow the system", light: "light", dark: "dark" },
       build: {
+        page: "Build",
+        pageHint: "Read the damage verdict first, then tune the enemy, school and slots.",
+        loading: "Loading the build lab…",
         needWeapon: "Choose a weapon on the Coach page first.",
         unsupported: "“|W|” has no damage data yet: the calculator covers primary, secondary, melee and sentinel weapons. Riven planning still works on the Coach page.",
         calcNote: "Damage here is calculated: exact values in game may differ.",
@@ -174,7 +202,7 @@ export function strings(l: Lang) {
         stat: { cc: "Crit chance", cd: "Crit damage", sc: "Status", ms: "Multishot", fr: "Fire rate", mag: "Magazine", rl: "Reload" },
         killStacks: "kill stacks",
         stackKill: "on kill: +|P|% |S| per stack, max |M|",
-        stackBase: "on activation +|P|% |S|, ",
+        stackBase: "on activation +|P|% |S|",
         condNote: "conditional bonus not counted",
         variants: "Variant",
         variantNote: "Rivens are shared across the family — the panel follows the variant picked here.",
@@ -224,6 +252,14 @@ export function strings(l: Lang) {
         loading: "Loading reader (first time, ~20 MB)…",
         reading: "Reading…",
         readIn: (sec: string) => `Read in ${sec} s`,
+        /** OCR 结果确认：读出几条就报几条，并说明可以逐项修改 */
+        ocrCheck: (traits: number) => `Read ${traits} trait${traits === 1 ? "" : "s"} — check the values below before trusting the plan.`,
+        ocrKuvaMissing: "The Kuva left was not read: fill it in yourself.",
+        ocrCheckOk: "Looks right",
+        ocrReview: "What was read",
+        ocrItemOk: "Checked",
+        ocrItemCheck: "Mark",
+        ocrEditHint: "Tap an item to jump to its field and fix it.",
         failed: "Couldn't read it. Fill it in below.",
         noCard: "No riven found in that screenshot.",
         load: "The reader didn't load. Check the connection and paste again.",
@@ -395,6 +431,11 @@ export function strings(l: Lang) {
       },
       ranges: {
         title: "Stat ranges",
+        eyebrow: "STAT RANGES / VALUES",
+        headline: "Every value, at a glance.",
+        purpose: "Tables on desktop, one stat at a time on narrow screens — no tier or sign lost.",
+        table: "Value table",
+        badge: "|C| · disposition |D|",
         view: { class: "By weapon class", layout: "By layout" },
         sign: "Positive or negative",
         weapon: "Filter by weapon",
@@ -416,6 +457,19 @@ export function strings(l: Lang) {
       nav: { coach: "助手", build: "配卡", market: "行情", ranges: "詞條範圍", guide: "機制說明" },
       /** 手机顶栏的短文案：<=720px 页签一行排完靠它 */
       navShort: { coach: "助手", build: "配卡", market: "行情", ranges: "詞條", guide: "機制" },
+      coach: {
+        title: "洗卡助手",
+        jump: "查看推薦路線",
+        summary: {
+          label: "推薦路線",
+          needWeapon: "先選一把武器",
+          hit: "本步命中率",
+          total: "預計總循環",
+          budget: "赤毒內完成",
+          computing: "計算中…",
+          none: "暫無可用路線",
+        },
+      },
       account: {
         titleLogin: "登入",
         titleRegister: "註冊帳號",
@@ -451,6 +505,10 @@ export function strings(l: Lang) {
       crash: { message: "頁面繪製出錯了，你的進度已保存——重試通常就能恢復。", retry: "重試" },
       market: {
         title: "紫卡行情",
+        eyebrow: "MARKET / 行情",
+        headline: "先篩選，再比較。",
+        purpose: "價格、在架量與週轉放在同一行；沒有結果時給明確出口。",
+        badge: "warframe.market · 每日快照",
         source: "掛單資料來自 warframe.market · 每日更新",
         loading: "正在載入行情資料…",
         error: "行情資料載入失敗。",
@@ -473,10 +531,16 @@ export function strings(l: Lang) {
         /** 行級利潤列的口徑：最優組合的利潤 */
         profitRowNote: "該武器熱門組合中的最優利潤（白金）：組合中位 − 洗到它的期望成本",
         /** 表頭兩列的單位標註（白金） */
-        platProfit: "利潤（白金）",
+        platProfit: "熱門組合最高利潤",
         platPrice: "中位（白金）",
         /** 首屏渲染上次快取資料時，新鮮度行旁的提示 */
         updating: "正在背景更新…",
+        /** 每日快照的絕對時間（|T| 為本地時間與時區） */
+        snapshot: "每日快照 · 資料時間 |T|",
+        empty: "沒有找到符合條件的武器。",
+        clear: "清除篩選",
+        more: "再顯示 60 把（還有 |N| 把）",
+        showing: "已顯示 |A| / |B| 把武器",
         turnoverHint: "週轉 = DE 週成交 |P| 筆 ÷ 在架 |N| 條——掛出去多快能出手",
         deRow: "|W| DE 週成交 |P| 筆（未洗 |PU| / 洗過 |PR|）· 全服成交中位 ≈|M|",
         weekRange: "|A|至|B|",
@@ -499,6 +563,7 @@ export function strings(l: Lang) {
         formula: "期望成本 ≈ E[赤毒] ÷ 赤毒時薪 × 白金時薪 · 期望利潤 = 組合中位 − 期望成本",
         formulaCalc: "代入：|K| 赤毒 ÷ |KW| 赤毒/時 × |PW| 白金/時 ≈ |C| 白金",
         est: "價格為組合中位（各檔位數值混合）；成本按目標檔位精確算，利潤為約數。",
+        wageZero: "白金時薪為 0，暫不給出洗或買的結論。請填入你心目中一小時的實際價值。",
       },
       contact: "問題與建議：",
       foot: {
@@ -509,6 +574,9 @@ export function strings(l: Lang) {
       disposition: { name: "傾向", tip: "2026 年 10 月 22 日起所有武器統一為 1.2。遊戲再次調整、或看更早的截圖時才需要修改。", reset: "恢復 1.2" },
       theme: { label: "主題", auto: "跟隨系統", light: "淺色", dark: "深色" },
       build: {
+        page: "配卡",
+        pageHint: "先看傷害結論，再調敵人、流派與卡槽。",
+        loading: "正在載入配卡…",
         needWeapon: "先在「助手」頁選一把武器。",
         unsupported: "「|W|」暫無傷害計算資料：目前僅支援主武器、副武器、近戰與守護武器；洗卡規劃仍可在助手頁使用。",
         calcNote: "本頁傷害為計算結果，實際數值以遊戲內為準。",
@@ -556,7 +624,7 @@ export function strings(l: Lang) {
         stat: { cc: "暴擊率", cd: "暴擊傷害", sc: "觸發", ms: "多重", fr: "射速", mag: "彈匣", rl: "裝填" },
         killStacks: "擊殺層",
         stackKill: "擊殺：每層 +|P|% |S|，最高 |M| 層",
-        stackBase: "啟動 +|P|% |S|，",
+        stackBase: "啟動 +|P|% |S|",
         condNote: "條件詞條不計入計算",
         variants: "版本",
         variantNote: "紫卡按家族通用——面板隨此處所選版本切換。",
@@ -606,6 +674,13 @@ export function strings(l: Lang) {
         loading: "首次載入辨識模型（約 20 MB）…",
         reading: "辨識中…",
         readIn: (sec: string) => `辨識 ${sec} 秒`,
+        ocrCheck: (traits: number) => `辨識到 ${traits} 條詞條——請先核對下方數值，再相信規劃結果。`,
+        ocrKuvaMissing: "未辨識到剩餘赤毒，請手動填寫。",
+        ocrCheckOk: "核對無誤",
+        ocrReview: "辨識結果逐項核對",
+        ocrItemOk: "已核對",
+        ocrItemCheck: "標記",
+        ocrEditHint: "點條目跳到對應欄位，直接改數值。",
         failed: "沒認出來，請在下方手動填寫。",
         noCard: "截圖裡沒有找到特性。",
         load: "辨識模型沒有載入成功，請檢查網路後再貼一次。",
@@ -776,6 +851,11 @@ export function strings(l: Lang) {
       },
       ranges: {
         title: "詞條範圍",
+        eyebrow: "STAT RANGES / 詞條範圍",
+        headline: "數值範圍，一眼定位。",
+        purpose: "桌面用對照表，窄屏按特性展開，檔位與正負面都不丟。",
+        table: "數值對照表",
+        badge: "|C| · 傾向 |D|",
         view: { class: "按武器類型", layout: "按詞條分布" },
         sign: "正面或負面",
         weapon: "按武器篩選",
@@ -796,6 +876,19 @@ export function strings(l: Lang) {
     nav: { coach: "助手", build: "配卡", market: "行情", ranges: "词条范围", guide: "机制说明" },
     /** 手机顶栏的短文案：<=720px 页签一行排完靠它 */
     navShort: { coach: "助手", build: "配卡", market: "行情", ranges: "词条", guide: "机制" },
+    coach: {
+      title: "洗卡助手",
+      jump: "查看推荐路线",
+      summary: {
+        label: "推荐路线",
+        needWeapon: "先选一把武器",
+        hit: "本步命中率",
+        total: "预计总循环",
+        budget: "赤毒内完成",
+        computing: "计算中…",
+        none: "暂无可用路线",
+      },
+    },
     account: {
       titleLogin: "登录",
       titleRegister: "注册账号",
@@ -831,6 +924,10 @@ export function strings(l: Lang) {
     crash: { message: "页面绘制出错了，你的进度已保存——重试通常就能恢复。", retry: "重试" },
     market: {
       title: "紫卡行情",
+      eyebrow: "MARKET / 行情",
+      headline: "先筛选，再比较。",
+      purpose: "价格、在架量与周转放在同一行；没有结果时给明确出口。",
+      badge: "warframe.market · 每日快照",
       source: "挂单数据来自 warframe.market · 每日更新",
       loading: "正在载入行情数据…",
       error: "行情数据载入失败。",
@@ -853,10 +950,16 @@ export function strings(l: Lang) {
       /** 行级利润列的口径：最优组合的利润 */
       profitRowNote: "该武器热门组合中的最优利润（白金）：组合中位 − 洗到它的期望成本",
       /** 表头两列的单位标注（白金） */
-      platProfit: "利润（白金）",
+      platProfit: "热门组合最高利润",
       platPrice: "中位价（白金）",
       /** 首屏渲染上次缓存数据时，新鲜度行旁的提示 */
       updating: "正在后台更新…",
+      /** 每日快照的绝对时间（|T| 为本地时间与时区） */
+      snapshot: "每日快照 · 数据时间 |T|",
+      empty: "没有找到符合条件的武器。",
+      clear: "清除筛选",
+      more: "再显示 60 把（还有 |N| 把）",
+      showing: "已显示 |A| / |B| 把武器",
       turnoverHint: "周转 = DE 周成交 |P| 笔 ÷ 在架 |N| 条——挂出去多快能出手",
       deRow: "|W| DE 周成交 |P| 笔（未洗 |PU| / 洗过 |PR|）· 全服成交中位 ≈|M|",
       weekRange: "|A|至|B|",
@@ -879,6 +982,7 @@ export function strings(l: Lang) {
       formula: "期望成本 ≈ E[赤毒] ÷ 赤毒时薪 × 白金时薪 · 期望利润 = 组合中位 − 期望成本",
       formulaCalc: "代入：|K| 赤毒 ÷ |KW| 赤毒/时 × |PW| 白金/时 ≈ |C| 白金",
       est: "价格为组合中位（各档位数值混合）；成本按目标档位精确算，利润为约数。",
+      wageZero: "白金时薪为 0，暂不给出洗或买的结论。请填入你心目中一小时的实际价值。",
     },
     contact: "问题和建议：",
     foot: {
@@ -889,6 +993,9 @@ export function strings(l: Lang) {
     disposition: { name: "倾向", tip: "2026 年 10 月 22 日起所有武器统一 1.2。游戏再改、或者看更早的截图时才需要改。", reset: "恢复 1.2" },
     theme: { label: "主题", auto: "跟随系统", light: "浅色", dark: "深色" },
     build: {
+      page: "配卡",
+      pageHint: "先看伤害结论，再调敌人、流派与卡槽。",
+      loading: "正在载入配卡…",
       needWeapon: "先在「助手」页选一把武器。",
       unsupported: "「|W|」暂无伤害计算数据：目前仅支持主武器、副武器、近战与守护武器；洗卡规划仍可在助手页使用。",
       calcNote: "本页伤害为计算结果，具体数值以游戏内为准。",
@@ -936,7 +1043,7 @@ export function strings(l: Lang) {
       stat: { cc: "暴击率", cd: "暴击伤害", sc: "触发", ms: "多重", fr: "射速", mag: "弹匣", rl: "装填" },
       killStacks: "击杀层",
       stackKill: "击杀：每层 +|P|% |S|，最高 |M| 层",
-      stackBase: "激活 +|P|% |S|，",
+      stackBase: "激活 +|P|% |S|",
       condNote: "条件词条不计入计算",
       variants: "版本",
       variantNote: "紫卡按家族通用——面板随此处所选版本切换。",
@@ -986,6 +1093,13 @@ export function strings(l: Lang) {
       loading: "首次加载识别模型（约 20 MB）…",
       reading: "识别中…",
       readIn: (sec: string) => `识别 ${sec} 秒`,
+      ocrCheck: (traits: number) => `识别到 ${traits} 条词条——请先核对下方数值，再相信规划结果。`,
+      ocrKuvaMissing: "未识别到剩余赤毒，请手动填写。",
+      ocrCheckOk: "核对无误",
+      ocrReview: "识别结果逐项核对",
+      ocrItemOk: "已核对",
+      ocrItemCheck: "标记",
+      ocrEditHint: "点条目跳到对应字段，直接改数值。",
       failed: "没认出来，在下面手动填。",
       noCard: "截图里没有找到属性。",
       load: "识别模型没加载成功，检查网络后再贴一次。",
@@ -1156,6 +1270,11 @@ export function strings(l: Lang) {
     },
     ranges: {
       title: "词条范围",
+      eyebrow: "STAT RANGES / 词条范围",
+      headline: "数值范围，一眼定位。",
+      purpose: "桌面用对照表，窄屏按属性展开，档位与正负面都不丢。",
+      table: "数值对照表",
+      badge: "|C| · 倾向 |D|",
       view: { class: "按武器类型", layout: "按词条分布" },
       sign: "正面或负面",
       weapon: "按武器筛选",

@@ -17,6 +17,11 @@ import { Segmented } from "./controls";
 
 interface Strings {
   title: string;
+  /** 展示页式页面头：栏目名 / 一句话主张 / 用途 / 数据来源徽章 */
+  eyebrow: string;
+  headline: string;
+  purpose: string;
+  badge: string;
   source: string;
   loading: string;
   error: string;
@@ -46,6 +51,14 @@ interface Strings {
   platPrice: string;
   /** 首屏渲染上次缓存数据时，新鲜度行旁的提示 */
   updating: string;
+  /** 每日快照的绝对时间（|T| 占位） */
+  snapshot: string;
+  /** 无结果与清除筛选 */
+  empty: string;
+  clear: string;
+  /** 分批渲染：还有 |N| 把没显示 / 已显示 |A| / |B| 把 */
+  more: string;
+  showing: string;
   /** 周转列的 title：指数构成（|P| 周成交笔数 |N| 在架挂单数） */
   turnoverHint: string;
   /** 展开详情的 DE 周成交行（|W| 数据周区间 |P| 笔数 |PU|/|PR| 未洗/洗过分组 |M| 成交中位） */
@@ -55,6 +68,8 @@ interface Strings {
 }
 
 const num = (n: number) => Math.round(n).toLocaleString("en-US");
+/** 一次渲染多少行：400+ 武器全画会拖慢首屏，先给一页，往下再要 */
+const PAGE = 60;
 
 /** cachedAt = 这份数据来自 localStorage 里上次拉取的缓存（首屏秒开），网络拉新成功后消失 */
 type Load = { kind: "loading" } | { kind: "error" } | { kind: "ok"; data: MarketData; cachedAt?: number };
@@ -72,10 +87,23 @@ export function Market({
   onCombo: (id: string, combo: MarketCombo) => void;
 }) {
   const t = s.market;
+  /** 五个页面共用的展示页式页头：栏目标签 + 主张 + 用途，右侧一枚数据来源徽章 */
+  const hero = (
+    <header className="page-hero">
+      <div>
+        <span className="eyebrow">{t.eyebrow}</span>
+        <h1>{t.headline}</h1>
+        <p>{t.purpose}</p>
+      </div>
+      <span className="badge">{t.badge}</span>
+    </header>
+  );
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [sort, setSort] = useState<MarketSort>("liquidity");
   const [cls, setCls] = useState<string>("");
   const [q, setQ] = useState("");
+  /** 首屏先给 60 行：400+ 武器一次全画会拖慢首屏（评测 P2 分批渲染），需要时再展开 */
+  const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<string | null>(null);
   const [costs, setCosts] = useState<Record<string, number | null>>({});
   // 挂载时读一次主页设置的时薪：利润列与「洗还是买」panel 同一换算率（切页回来会重读）
@@ -98,6 +126,10 @@ export function Market({
     start();
   }, [start]);
 
+  // 换排序或筛选就回到第一页，避免「展开到 300 行后改筛选」还停在一屏空白
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 这三个值只用来触发重置
+  useEffect(() => setLimit(PAGE), [sort, cls, q]);
+
   // market.json 的 en 名来自 game.json，据此反查武器 id 交回主页 session
   const idByEn = useMemo(() => new Map(GAME.weapons.map((w) => [w.name.en, w.id])), []);
   // 同伴武器按 en 名辨出（它们的 cls 仍是步枪/手枪，但行情页有自己的 tab，不混进类型栏）
@@ -110,6 +142,7 @@ export function Market({
     if (cls) return rs.filter((r) => !sentinelEn.has(r.w.name.en));
     return rs;
   }, [load, sort, cls, q, wage, sentinelEn]);
+  const shownRows = rows.slice(0, limit);
 
   // 展开一把武器时把它的热门组合排进求解队列（独立 worker，不挤主页的 plan）；
   // market.json 已预算 cost_kuva 的组合（含确定性 null）不再现算，缺的才入队。
@@ -152,6 +185,7 @@ export function Market({
   if (load.kind === "loading") {
     return (
       <main className="market">
+        {hero}
         <section className="panel" role="status" aria-label={t.loading}>
           {/* 骨架屏（P0-5）：首次访问无缓存时也有一块稳定结构，不是一句干巴巴的文案 */}
           <div className="market-skeleton" aria-hidden="true">
@@ -167,6 +201,7 @@ export function Market({
   if (load.kind === "error") {
     return (
       <main className="market">
+        {hero}
         <section className="panel">
           <p className="empty">{t.error}</p>
           <p>
@@ -186,6 +221,18 @@ export function Market({
   const weekText = range ? t.weekRange.replace("|A|", range.start).replace("|B|", range.end) : (wk ?? "");
   const age = marketAgeHours(m);
   const fresh = age < 48 ? t.freshHours.replace("|H|", String(Math.max(1, Math.round(age)))) : t.freshDays.replace("|D|", String(Math.round(age / 24)));
+  // 绝对时间：相对「几小时前」不够，玩家要能对上自己的时间（每日快照，不是实时行情）
+  const stamp = new Date(m.meta.generated_at);
+  const snapText = Number.isNaN(stamp.getTime())
+    ? m.meta.generated_at
+    : stamp.toLocaleString(lang === "en" ? "en-GB" : lang === "tc" ? "zh-TW" : "zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
 
   const sortOptions = (
     [
@@ -200,15 +247,18 @@ export function Market({
 
   return (
     <main className="market">
-      <section className="panel market-head">
+      {hero}
+      <section className="panel market-panel">
         <div className="panel-h">
           <h2>{t.title}</h2>
+          <span className="subtle">{t.source}</span>
         </div>
-        <p className="muted small">
+        <p className="muted small market-meta">
           {fresh}
-          {load.cachedAt != null ? ` · ${t.updating}` : ""} · {t.source}
+          {load.cachedAt != null ? ` · ${t.updating}` : ""} · {t.snapshot.replace("|T|", snapText)}
         </p>
-        <div className="market-controls">
+        <div className="market-toolbar">
+          <input className="market-q" type="search" placeholder={t.search} value={q} aria-label={t.search} onChange={(e) => setQ(e.target.value)} />
           <Segmented label={t.title} value={sort} options={sortOptions} onChange={(v) => setSort(v)} />
           <Segmented
             label={t.all}
@@ -220,11 +270,8 @@ export function Market({
             ]}
             onChange={(v) => setCls(v)}
           />
-          <input className="market-q" type="search" placeholder={t.search} value={q} aria-label={t.search} onChange={(e) => setQ(e.target.value)} />
         </div>
-      </section>
 
-      <section className="panel">
         {/* 行内横排数字的名字：在架挂单 / 周转 / 利润 / 中位价（与下方各列一一对应） */}
         <div className="market-head-row" aria-hidden="true">
           <span />
@@ -236,7 +283,7 @@ export function Market({
           <span className="whdr">{t.platPrice}</span>
         </div>
         <ol className="market-list">
-          {rows.map((r, i) => {
+          {shownRows.map((r, i) => {
             const combos = shownCombos(r.w, wage);
             const id = idByEn.get(r.w.name.en);
             const to = turnover(r.w);
@@ -363,7 +410,29 @@ export function Market({
             );
           })}
         </ol>
-        {!rows.length && <p className="empty">{t.search}</p>}
+        {rows.length > shownRows.length && (
+          <div className="market-more">
+            <span className="muted small">{t.showing.replace("|A|", String(shownRows.length)).replace("|B|", String(rows.length))}</span>
+            <button type="button" className="text-btn" onClick={() => setLimit((n) => n + PAGE)}>
+              {t.more.replace("|N|", String(rows.length - shownRows.length))}
+            </button>
+          </div>
+        )}
+        {!rows.length && (
+          <div className="empty" role="status">
+            <p>{t.empty}</p>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => {
+                setQ("");
+                setCls("");
+              }}
+            >
+              {t.clear}
+            </button>
+          </div>
+        )}
       </section>
     </main>
   );

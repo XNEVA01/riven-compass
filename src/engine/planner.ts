@@ -22,6 +22,8 @@ export interface PlanRequest {
   runs: number;
   /** Additional cards evaluated in the selected objective's units. */
   compare?: Card[];
+  /** 固定种子：相同输入给相同的分位数（Math.random 下 P90 每次刷新都会浮动） */
+  seed?: number;
 }
 
 export interface Quantiles {
@@ -56,6 +58,18 @@ function quantiles(sorted: Float64Array): Quantiles {
     p50: q(0.5),
     p75: q(0.75),
     p90: q(0.9),
+  };
+}
+
+/** 固定种子的 PRNG（mulberry32）：只让同一输入的 P50/P90 可复现，不改变模型本身。 */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -157,7 +171,7 @@ export class Planner {
       this.modelKey = modelKey;
       this.forget();
     }
-    const key = JSON.stringify([modelKey, req.card, req.compare, priced, req.runs]);
+    const key = JSON.stringify([modelKey, req.card, req.compare, priced, req.runs, req.seed ?? 0]);
     if (this.cached?.key !== key) {
       const pool = poolFor(weapon, seen);
       const solve = (card: Card) => {
@@ -197,8 +211,10 @@ export class Planner {
       const routes = !done && reachable ? solver.routes(req.card) : [];
       // the exact means with the introductory prices, all routes in one pass
       const kuvaMeans = solver.expectedKuvas(req.card, routes, priced);
+      // 有种子就每次从同一点开始：刷新页面看到的分位数不变（模型本身不变）
+      const rng = req.seed != null ? mulberry32(req.seed) : this.rng;
       const stats = routes.map((route, r): RouteStats => {
-        const sim = solver.simulate(req.card, route, priced, req.runs, this.rng);
+        const sim = solver.simulate(req.card, route, priced, req.runs, rng);
         const sortedKuva = sim.kuva.sort();
         samples.push(sortedKuva);
         const kuva = quantiles(sortedKuva);

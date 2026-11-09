@@ -1,13 +1,16 @@
-# 每天北京时间 03:20 抓一次 warframe.market 全量挂单，聚合并发布快照到服务器。
+# 每天北京时间 03:20 抓一次 warframe.market 全量挂单，聚合并发布快照。
 # GitHub schedule 按 UTC 跑（19:20 UTC = 次日 03:20 北京时间），实际触发常有几分钟级延迟。
 # 出口被 Cloudflare 挑战时自动用 playwright 取 Cookie 断点续扫（pipeline/scan_ci.sh）。
+# 发布方式：孤儿分支 market-data 只放 market.json（每日强推覆盖，仓库不膨胀），
+# 同时打轻量 tag snap-YYYY-MM-DD；服务器定时从 jsDelivr 按 tag 拉取（tag 缓存不可变）。
+# 备选方案：仓库里有 deploy_ci.sh（SSH 直发，需要 DEPLOY_SSH_KEY secret），想切换随时恢复。
 on:
   schedule:
     - cron: "20 19 * * *"
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: snapshot
@@ -47,10 +50,34 @@ jobs:
           print(f"validated: {weapons} weapons, generated_at {d['meta']['generated_at']}")
           PY
 
-      - name: Publish
+      - name: Publish to repo
         env:
-          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: bash pipeline/deploy_ci.sh
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          TAG="snap-$DAY"
+          TMPD=$(mktemp -d)
+          cd "$TMPD"
+          git init -q .
+          git config user.name "snapshot-bot"
+          git config user.email "actions@users.noreply.github.com"
+          cp "$GITHUB_WORKSPACE/pipeline/out/market.json" market.json
+          SUMMARY=$(python3 -c "import json;d=json.load(open('market.json'));print(len(d['weapons']),'weapons,',d['meta']['generated_at'])")
+          git add market.json
+          git commit -qm "snapshot $DAY: $SUMMARY"
+          git branch -M market-data
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/XNEVA01/riven-compass.git"
+          git push -f origin market-data
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "published $TAG ($SUMMARY)"
+          # 清理 10 天前的旧 tag，免得仓库 refs 无限增长
+          CUTOFF=$(date -d "10 days ago" +%F)
+          for t in $(git ls-remote --tags origin 'snap-*' | awk -F/ '{print $NF}' | sort -u); do
+            d=${t#snap-}
+            if [[ "$d" < "$CUTOFF" ]]; then
+              git push origin --delete "$t" && echo "pruned old tag $t"
+            fi
+          done
 
       - name: Upload debug info on failure
         if: failure()

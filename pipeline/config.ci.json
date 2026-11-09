@@ -1,0 +1,23 @@
+{
+  "game_json": "game.json",
+  "raw_dir": "raw",
+  "out_market": "out/market.json",
+  "wm": {
+    "api_base": "https://api.warframe.market",
+    "sentry_trace": "NzdkNjAzNzgxMzRiMDlkNGVkYjU=",
+    "interval_seconds": 3,
+    "timeout_seconds": 25,
+    "canary": "kuva_bramma"
+  },
+  "filters": {
+    "max_age_days": 30,
+    "combo_min_count": 2,
+    "top_combos": 12
+  },
+  "solve": {
+    "node_bin": "node",
+    "script": "solve.cjs",
+    "cache": "cost_cache.json"
+  },
+  "raw_keep_days": 14
+}

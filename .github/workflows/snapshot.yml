@@ -1,0 +1,63 @@
+# 每天北京时间 03:20 抓一次 warframe.market 全量挂单，聚合并发布快照到服务器。
+# GitHub schedule 按 UTC 跑（19:20 UTC = 次日 03:20 北京时间），实际触发常有几分钟级延迟。
+# 出口被 Cloudflare 挑战时自动用 playwright 取 Cookie 断点续扫（pipeline/scan_ci.sh）。
+on:
+  schedule:
+    - cron: "20 19 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  scan-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Scan
+        run: bash pipeline/scan_ci.sh
+
+      - name: Aggregate
+        run: |
+          cd pipeline
+          mkdir -p out
+          python3 -u wm_pipeline.py aggregate --config config.ci.json --date "$DAY" --out out/market.json
+
+      - name: Validate
+        run: |
+          python3 - <<'PY'
+          import json, os
+          day = os.environ["DAY"]
+          d = json.load(open("pipeline/out/market.json"))
+          weapons = len(d["weapons"])
+          assert d["meta"]["scan_date"] == day, f"scan_date {d['meta']['scan_date']} != {day}"
+          assert weapons >= 300, f"only {weapons} weapons"
+          print(f"validated: {weapons} weapons, generated_at {d['meta']['generated_at']}")
+          PY
+
+      - name: Publish
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: bash pipeline/deploy_ci.sh
+
+      - name: Upload debug info on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-debug-${{ env.DAY }}
+          path: |
+            pipeline/scan-*.log
+            pipeline/raw/_scan_meta.json
+          retention-days: 3

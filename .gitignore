@@ -7,3 +7,9 @@ __pycache__/
 .export-cache/
 tsconfig.tsbuildinfo
 public/__test__/
+pipeline/raw/*
+!pipeline/raw/_name_cache.json
+pipeline/out/
+pipeline/clearance.env
+pipeline/cost_cache.json
+pipeline/node_modules/

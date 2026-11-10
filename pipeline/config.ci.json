@@ -5,7 +5,7 @@
   "wm": {
     "api_base": "https://api.warframe.market",
     "sentry_trace": "NzdkNjAzNzgxMzRiMDlkNGVkYjU=",
-    "interval_seconds": 3,
+    "interval_seconds": 2,
     "timeout_seconds": 25,
     "canary": "kuva_bramma"
   },

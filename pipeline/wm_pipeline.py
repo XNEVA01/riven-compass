@@ -24,14 +24,19 @@ import argparse
 import atexit
 import gzip
 import hashlib
+import http.client
 import json
 import os
 import re
+import ssl
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -51,33 +56,70 @@ DE_SOURCES = (
 
 # ---------------- HTTP ----------------
 
+# 线程本地 keep-alive 连接：urllib 每请求新建 TCP+TLS，被 Cloudflare 慢速响应（tarpit）
+# 时单请求拖到 7s+，全量扫描必然超时；复用连接后每个线程只付一次握手成本
+_TLS_CTX = ssl.create_default_context()
+_CONN_LOCAL = threading.local()
+_CACHE_LOCK = threading.Lock()  # name_cache 是跨线程共享 dict，读写都要持锁
+
+
+def _get_conn(host, timeout):
+    """线程本地 keep-alive 连接；有代理环境变量（沙箱等）时走 CONNECT 隧道，否则直连"""
+    c = getattr(_CONN_LOCAL, "conn", None)
+    if c is not None and c.host == host:
+        return c
+    if c is not None:
+        try:
+            c.close()
+        except Exception:
+            pass
+    p = urllib.parse.urlsplit(
+        os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or "")
+    if p.scheme in ("http", "https") and p.hostname:
+        c = http.client.HTTPSConnection(p.hostname, p.port or 443, timeout=timeout, context=_TLS_CTX)
+        c.set_tunnel(host)  # CONNECT 隧道穿透到目标 443
+    else:
+        c = http.client.HTTPSConnection(host, timeout=timeout, context=_TLS_CTX)
+    _CONN_LOCAL.conn = c
+    return c
+
+
 def http_get_json(url, trace, timeout, retries=2):
-    """带 sentry-trace 的 GET，返回 (status, obj)；400 业务错误不重试"""
-    req = urllib.request.Request(url, headers={
+    """带 sentry-trace 的 GET（线程本地 keep-alive），返回 (status, obj)；400 业务错误不重试"""
+    u = urllib.parse.urlsplit(url)
+    path = u.path + ("?" + u.query if u.query else "")
+    headers = {
         "accept": "application/json",
         "platform": "pc",
         "language": "en",
         "crossplay": "true",
         "sentry-trace": trace,
         "user-agent": UA,
+        "host": u.netloc,
         **({"cookie": os.environ["WM_COOKIE"]} if os.environ.get("WM_COOKIE") else {}),
-    })
+    }
     for attempt in range(retries + 1):
+        c = _get_conn(u.netloc, timeout)
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                return r.status, json.load(r)
-        except urllib.error.HTTPError as e:
-            try:
-                e.read()[:256]  # 排空错误体；网络差时这一步自身也可能超时
-            except Exception:
-                pass  # 在 except 块内抛出的 TimeoutError 不会被兄弟 except 捕获，必须就地吞掉
-            if e.code == 400:
+            c.request("GET", path, headers=headers)
+            r = c.getresponse()
+            status = r.status
+            body = r.read()  # 读干净才能复用连接
+            if status == 400:
                 return 400, None  # 参数/武器名不合法
-            if e.code == 429 and attempt < retries:
+            if status == 429 and attempt < retries:
                 time.sleep(60)
                 continue
-            return e.code, None
+            if status != 200:
+                return status, None
+            return status, json.loads(body)
         except Exception:
+            # 连接被服务端关闭/超时等 → 丢弃重建重试
+            try:
+                c.close()
+            except Exception:
+                pass
+            _CONN_LOCAL.conn = None
             if attempt < retries:
                 time.sleep(15)
                 continue
@@ -267,11 +309,14 @@ def cmd_scan(cfg, only_weapons, date):
 
     t0 = time.time()
     invalid, empty_payload, done = [], [], 0
-    for idx, (en, cands, wmeta) in enumerate(todo, 1):
+    conc = max(1, int(wm.get("concurrency", 4)))
+
+    def scan_one(item):
+        """一把武器的完整扫描；线程安全（HTTP 连接线程本地，name_cache 持锁）"""
+        en, cands, wmeta = item
         out_file = day_dir / f"{cands[0]}.json.gz"
         if out_file.exists():
-            done += 1
-            continue  # 断点续扫
+            return "done", None  # 断点续扫
         found = None
         statuses = []
         for cand in cands:
@@ -279,41 +324,55 @@ def cmd_scan(cfg, only_weapons, date):
             statuses.append(info["status"])
             if auctions is not None:
                 found = (cand, auctions, info)
-                if cand != name_cache.get(en):
-                    name_cache[en] = cand
-                    write_json(name_cache_path, name_cache, ensure_ascii=False, indent=1)
+                with _CACHE_LOCK:
+                    if cand != name_cache.get(en):
+                        name_cache[en] = cand
+                        write_json(name_cache_path, name_cache, ensure_ascii=False, indent=1)
                 break
             if info["status"] == 200:
-                empty_payload.append(en)
-                break  # 令牌问题，不再尝试其它候选
+                return "empty", en  # 令牌问题，不再尝试其它候选
             time.sleep(wm["interval_seconds"])
         if not found:
-            invalid.append({"en": en, "tried": cands})
             if statuses and all(s == 400 for s in statuses):
                 # 全部候选都 400 = 确认无此页（区别于网络失败/令牌失效），写负缓存
-                name_cache[en] = ""
-                write_json(name_cache_path, name_cache, ensure_ascii=False, indent=1)
-        else:
-            cand, auctions, info = found
-            payload = {
-                "fetched_at": datetime.now(timezone.utc).isoformat(),
-                "weapon_url_name": cand,
-                "weapon": {"en": wmeta["name"]["en"], "zh": wmeta["name"]["zh"],
-                           "tc": wmeta["name"]["tc"], "cn": wmeta["name"]["cn"],
-                           "cls": wmeta["cls"]},
-                "scan_info": info,
-                "auctions": auctions,
-            }
-            with gzip.open(out_file, "wt", encoding="utf-8") as f:
-                json.dump(payload, f, ensure_ascii=False)
-            done += 1
-        if idx % 10 == 0 or idx == len(todo):
-            elapsed = time.time() - t0
-            rate = idx / max(elapsed, 1)
-            eta = (len(todo) - idx) / max(rate, 1e-9) / 60
-            print(f"[{idx}/{len(todo)}] 完成={done} 无效={len(invalid)} "
-                  f"已用={elapsed/60:.0f}分 预计剩余={eta:.0f}分", flush=True)
-        time.sleep(wm["interval_seconds"])
+                with _CACHE_LOCK:
+                    name_cache[en] = ""
+                    write_json(name_cache_path, name_cache, ensure_ascii=False, indent=1)
+            return "invalid", {"en": en, "tried": cands}
+        cand, auctions, info = found
+        payload = {
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "weapon_url_name": cand,
+            "weapon": {"en": wmeta["name"]["en"], "zh": wmeta["name"]["zh"],
+                       "tc": wmeta["name"]["tc"], "cn": wmeta["name"]["cn"],
+                       "cls": wmeta["cls"]},
+            "scan_info": info,
+            "auctions": auctions,
+        }
+        with gzip.open(out_file, "wt", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False)
+        return "done", None
+
+    total = len(todo)
+    with ThreadPoolExecutor(max_workers=conc) as ex:
+        futs = [ex.submit(scan_one, item) for item in todo]
+        for i, fut in enumerate(as_completed(futs), 1):
+            try:
+                kind, val = fut.result()
+            except Exception as exc:  # 单武器意外崩溃不拖垮整轮，记为无效
+                kind, val = "invalid", {"en": f"<exception: {exc}>", "tried": []}
+            if kind == "done":
+                done += 1
+            elif kind == "invalid":
+                invalid.append(val)
+            elif kind == "empty":
+                empty_payload.append(val)
+            if i % 10 == 0 or i == total:
+                elapsed = time.time() - t0
+                rate = i / max(elapsed, 1)
+                eta = (total - i) / max(rate, 1e-9) / 60
+                print(f"[{i}/{total}] 完成={done} 无效={len(invalid)} "
+                      f"已用={elapsed/60:.0f}分 预计剩余={eta:.0f}分", flush=True)
 
     meta = {
         "finished_at": datetime.now(timezone.utc).isoformat(),

@@ -58,6 +58,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           TAG="snap-$DAY"
+          ORIGIN_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/XNEVA01/riven-compass.git"
+          # 幂等：当天 tag 已存在就跳过（定时触发有延迟时会排队重复运行，避免 tag 冲突报错）
+          if git ls-remote --tags "$ORIGIN_URL" "refs/tags/$TAG" | grep -q "refs/tags/$TAG$"; then
+            echo "tag $TAG already published, skipping"
+            exit 0
+          fi
           TMPD=$(mktemp -d)
           cd "$TMPD"
           git init -q .
@@ -68,7 +74,7 @@ jobs:
           git add market.json
           git commit -qm "snapshot $DAY: $SUMMARY"
           git branch -M market-data
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/XNEVA01/riven-compass.git"
+          git remote add origin "$ORIGIN_URL"
           git push -f origin market-data
           git tag "$TAG"
           git push origin "$TAG"

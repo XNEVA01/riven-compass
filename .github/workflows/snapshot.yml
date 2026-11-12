@@ -1,12 +1,17 @@
-# 每天北京时间 03:20 抓一次 warframe.market 全量挂单，聚合并发布快照。
-# GitHub schedule 按 UTC 跑（19:20 UTC = 次日 03:20 北京时间），实际触发常有几分钟级延迟。
+# 每天北京时间 03:20 起多个点位抓 warframe.market 全量挂单，聚合并发布快照。
+# GitHub schedule 按 UTC 跑，且对免费仓库常有数小时级调度延迟——因此排 4 个错峰点位
+# （03:20 / 06:50 / 09:20 / 11:50 北京时间），第一个跑起来的干活，其余由「当天 tag 已存在」
+# 的秒级跳过检查直接退出，保证每天只扫一次、不因单点延迟或失败断更。
 # 出口被 Cloudflare 挑战时自动用 playwright 取 Cookie 断点续扫（pipeline/scan_ci.sh）。
 # 发布方式：孤儿分支 market-data 只放 market.json（每日强推覆盖，仓库不膨胀），
 # 同时打轻量 tag snap-YYYY-MM-DD；服务器定时从 jsDelivr 按 tag 拉取（tag 缓存不可变）。
 # 备选方案：仓库里有 deploy_ci.sh（SSH 直发，需要 DEPLOY_SSH_KEY secret），想切换随时恢复。
 on:
   schedule:
-    - cron: "20 19 * * *"
+    - cron: "20 19 * * *" # 北京 03:20
+    - cron: "50 22 * * *" # 北京 06:50
+    - cron: "20 1 * * *" # 北京 09:20
+    - cron: "50 3 * * *" # 北京 11:50
   workflow_dispatch: {}
   push:
     branches: [main]
@@ -28,20 +33,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Skip if today already published
+        id: skipcheck
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          DAY=$(TZ=Asia/Shanghai date +%F)
+          TAG="snap-$DAY"
+          if git ls-remote --tags "https://x-access-token:${GITHUB_TOKEN}@github.com/XNEVA01/riven-compass.git" "refs/tags/$TAG" | grep -q "refs/tags/$TAG$"; then
+            echo "skip=true" >>"$GITHUB_OUTPUT"
+            echo "today's tag $TAG already published, skipping entire run"
+          else
+            echo "skip=false" >>"$GITHUB_OUTPUT"
+            echo "today's tag $TAG not found, proceeding"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.skipcheck.outputs.skip != 'true'
         with:
           python-version: "3.12"
 
       - name: Scan
+        if: steps.skipcheck.outputs.skip != 'true'
         run: bash pipeline/scan_ci.sh
 
       - name: Aggregate
+        if: steps.skipcheck.outputs.skip != 'true'
         run: |
           cd pipeline
           mkdir -p out
           python3 -u wm_pipeline.py aggregate --config config.ci.json --date "$DAY" --out out/market.json
 
       - name: Validate
+        if: steps.skipcheck.outputs.skip != 'true'
         run: |
           python3 - <<'PY'
           import json, os
@@ -54,6 +78,7 @@ jobs:
           PY
 
       - name: Publish to repo
+        if: steps.skipcheck.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |

@@ -17,6 +17,13 @@ URLS=(
   "https://cdn.jsdelivr.net/gh/XNEVA01/riven-compass@snap-${DAY}/market.json"
 )
 
+# 线上已是当日快照则跳过（服务器本地扫描已上线，避免反复覆盖）
+CUR=$(python3 -c "import json;print(json.load(open('$OUT'))['meta'].get('scan_date'))" 2>/dev/null || echo "")
+if [ "$CUR" = "$DAY" ]; then
+  echo "live already $DAY, skip pull $(date -Is)" >>"$LOG"
+  exit 0
+fi
+
 echo "=== pull started $(date -Is) day=${DAY} ===" >>"$LOG"
 ok=0
 for i in $(seq 1 "$ATTEMPTS"); do
